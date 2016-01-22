@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,18 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cassalog.core
+package org.cassalog.core
 import com.datastax.driver.core.PreparedStatement
 import com.datastax.driver.core.Session
-import com.google.common.hash.HashFunction
-import com.google.common.hash.Hashing
 
 import java.nio.ByteBuffer
-
+import java.security.MessageDigest
 /**
  * @author jsanda
  */
-class SchemaManager {
+class CassalogService {
 
   static final String CHANGELOG_TABLE = 'schema_changelog'
 
@@ -36,8 +34,6 @@ class SchemaManager {
   Session session
 
   int bucketSize = DEFAULT_BUCKET_SIZE
-
-  HashFunction hashFunction = Hashing.sha1()
 
   PreparedStatement insertSchemaChange
 
@@ -59,17 +55,17 @@ class SchemaManager {
     shell.evaluate(script)
 
     schemaChanges.eachWithIndex{ ChangeSet change, int i ->
-      byte[] bytes = hashFunction.hashBytes(change.cql.bytes).asBytes()
-      change.hash = ByteBuffer.wrap(bytes)
+      validate(change)
+      change.hash = computeHash(change.cql)
 
       if (i < changeLog.size) {
         if (changeLog[i].id != change.id) {
-          throw new ChangeSetException("The id [$change.id] for $change does not match the id " +
+          throw new ChangeSetAlteredException("The id [$change.id] for $change does not match the id " +
               "[${changeLog[i].id}] in the change log")
         }
 
         if (changeLog[i].hash != change.hash) {
-          throw new ChangeSetException("The hash [${toHex(change.hash)}] for $change does not match the hash " +
+          throw new ChangeSetAlteredException("The hash [${toHex(change.hash)}] for $change does not match the hash " +
               "[${toHex(changeLog[i].hash)}] in the change log")
         }
       } else {
@@ -114,6 +110,26 @@ CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
 )
 """)
     }
+  }
+
+  /**
+   * Perform basic validation to ensure required fields are set.
+   *
+   * @param changeSet The change set to validate
+   */
+  def validate(ChangeSet changeSet) {
+    if (changeSet.id == null) {
+      throw new ChangeSetValidationException('The id must be set for a ChangeSet')
+    }
+    if (changeSet.cql == null) {
+      throw new ChangeSetValidationException('The cql must be set for a ChangeSet')
+    }
+  }
+
+  def computeHash(String s) {
+    def sha1 = MessageDigest.getInstance("SHA1")
+    def digest = sha1.digest(s.bytes)
+    return ByteBuffer.wrap(digest)
   }
 
   def toHex(ByteBuffer buffer) {

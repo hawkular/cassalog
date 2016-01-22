@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cassalog.core
+package org.cassalog.core
 
 import com.datastax.driver.core.PreparedStatement
 import com.datastax.driver.core.Row
@@ -55,16 +55,16 @@ class ChangeLog {
   void load() {
     loadBucket = session.prepare("""
       SELECT id, applied_at, hash, author, description, tags
-      FROM ${keyspace}.$SchemaManager.CHANGELOG_TABLE
+      FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE
       WHERE bucket = ?
       """
     )
-    def bucketResultSet = session.execute("SELECT DISTINCT bucket FROM ${keyspace}.$SchemaManager.CHANGELOG_TABLE")
+    def bucketResultSet = session.execute("SELECT DISTINCT bucket FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE")
     if (!bucketResultSet.exhausted) {
       int bucket = bucketResultSet.all().max { it.getInt(0) }.getInt(0)
       def revisionsResultSet = session.execute("""
         SELECT revision
-        FROM ${keyspace}.$SchemaManager.CHANGELOG_TABLE
+        FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE
         WHERE bucket = $bucket ORDER BY revision DESC
         """
       )

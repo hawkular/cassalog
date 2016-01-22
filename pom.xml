@@ -20,10 +20,10 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>cassalog</groupId>
+  <groupId>org.cassalog</groupId>
   <artifactId>cassalog</artifactId>
   <version>0.1.0-SNAPSHOT</version>
-  <name>CassaLog</name>
+  <name>Cassalog</name>
   <description>A Cassandra schema change management tool for applications running on the JVM</description>
 
   <properties>
@@ -44,12 +44,6 @@
       <groupId>com.datastax.cassandra</groupId>
       <artifactId>cassandra-driver-core</artifactId>
       <version>${version.com.datastax.cassandra}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${version.com.google.guava}</version>
     </dependency>
 
     <dependency>

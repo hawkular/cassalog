@@ -14,26 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cassalog.core
+package org.cassalog.core
 
 /**
+ * When a change set has already been applied and is stored in the change log in the database, and the change set is
+ * subsequently altered, this exception will be thrown.
+ *
  * @author jsanda
  */
-class ChangeSetException extends RuntimeException {
+class ChangeSetAlteredException extends ChangeSetException {
 
-  ChangeSetException() {
-    super()
-  }
-
-  ChangeSetException(String message) {
+  def ChangeSetAlteredException(String message) {
     super(message)
-  }
-
-  ChangeSetException(String message, Throwable cause) {
-    super(message, cause)
-  }
-
-  ChangeSetException(Throwable cause) {
-    super(cause)
   }
 }

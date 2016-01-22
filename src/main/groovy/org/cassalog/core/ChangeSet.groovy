@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cassalog.core
+package org.cassalog.core
 
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,19 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cassalog.core
+package org.cassalog.core
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.PreparedStatement
 import com.datastax.driver.core.Session
 import org.testng.annotations.BeforeClass
 import org.testng.annotations.Test
-
-import static cassalog.core.SchemaManager.CHANGELOG_TABLE
-import static org.testng.Assert.*
 /**
  * @author jsanda
  */
-class SchemaManagerTest {
+class CassalogServiceTest {
 
   static Session session
 
@@ -70,38 +67,38 @@ schemaChange {
 \"\"\"
 }
 """
-    SchemaManager schemaManager = new SchemaManager(keyspace: keyspace, session: session)
-    schemaManager.execute(new StringReader(script))
+    CassalogService casslog = new CassalogService(keyspace: keyspace, session: session)
+    casslog.execute(new StringReader(script))
 
     assertTableExists(keyspace, table)
 
     def resultSet = session.execute(
-        "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CHANGELOG_TABLE " +
+        "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE " +
         "WHERE bucket = 0"
     )
     def rows = resultSet.all()
 
-    assertEquals(rows.size(), 1, "Expected to find one row in $CHANGELOG_TABLE")
-    assertEquals(rows[0].getString(0), 'first-table')
-    assertNotNull(rows[0].getBytes(1))
-    assertEquals(rows[0].getString(3), 'admin')
-    assertEquals(rows[0].getString(4), 'test')
-    assertTrue(rows[0].getSet(5, String.class).empty)
+    org.testng.Assert.assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
+    org.testng.Assert.assertEquals(rows[0].getString(0), 'first-table')
+    org.testng.Assert.assertNotNull(rows[0].getBytes(1))
+    org.testng.Assert.assertEquals(rows[0].getString(3), 'admin')
+    org.testng.Assert.assertEquals(rows[0].getString(4), 'test')
+    org.testng.Assert.assertTrue(rows[0].getSet(5, String.class).empty)
 
     Date appliedAt = rows[0].getTimestamp(2)
-    assertNotNull(appliedAt)
+    org.testng.Assert.assertNotNull(appliedAt)
 
     // Now running again should be a no op
-    schemaManager.execute(new StringReader(script))
+    casslog.execute(new StringReader(script))
 
     resultSet = session.execute(
-       "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CHANGELOG_TABLE " +
+       "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE " +
        "WHERE bucket = 0"
     )
     rows = resultSet.all()
 
-    assertEquals(rows.size(), 1, "Expected to find one row in $CHANGELOG_TABLE")
-    assertEquals(rows[0].getTimestamp(2), appliedAt)
+    org.testng.Assert.assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
+    org.testng.Assert.assertEquals(rows[0].getTimestamp(2), appliedAt)
   }
 
   @Test
@@ -142,24 +139,24 @@ schemaChange {
     \"\"\"
 }
 """
-    SchemaManager schemaManager = new SchemaManager(keyspace: keyspace, session: session)
-    schemaManager.execute(new StringReader(updatedScript))
+    CassalogService casslog = new CassalogService(keyspace: keyspace, session: session)
+    casslog.execute(new StringReader(updatedScript))
 
     assertTableExists(keyspace, 'test2')
 
     def resultSet = session.execute(
-        "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CHANGELOG_TABLE " +
+        "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE " +
         "WHERE bucket = 0"
     )
     def rows = resultSet.all()
 
-    assertEquals(rows.size(), 2, "Expected to find two rows in $CHANGELOG_TABLE")
-    assertEquals(rows[0].getString(0), 'first-table')
-    assertEquals(rows[1].getString(0), 'second-table')
-    assertNotNull(rows[1].getBytes(1))
-    assertEquals(rows[1].getString(3), 'admin')
-    assertEquals(rows[1].getString(4), 'second table test')
-    assertEquals(rows[1].getSet(5, String.class), ['red', 'blue'] as Set)
+    org.testng.Assert.assertEquals(rows.size(), 2, "Expected to find two rows in $CassalogService.CHANGELOG_TABLE")
+    org.testng.Assert.assertEquals(rows[0].getString(0), 'first-table')
+    org.testng.Assert.assertEquals(rows[1].getString(0), 'second-table')
+    org.testng.Assert.assertNotNull(rows[1].getBytes(1))
+    org.testng.Assert.assertEquals(rows[1].getString(3), 'admin')
+    org.testng.Assert.assertEquals(rows[1].getString(4), 'second table test')
+    org.testng.Assert.assertEquals(rows[1].getSet(5, String.class), ['red', 'blue'] as Set)
   }
 
   @Test
@@ -198,8 +195,8 @@ schemaChange {
     \"\"\"
 }
 """
-    def schemaManager = new SchemaManager(keyspace: keyspace, session: session, bucketSize: 2)
-    schemaManager.execute(new StringReader(script))
+    def casslog = new CassalogService(keyspace: keyspace, session: session, bucketSize: 2)
+    casslog.execute(new StringReader(script))
 
     def updatedScript = script + "\n\n" + """
   schemaChange {
@@ -217,16 +214,16 @@ schemaChange {
     \"\"\"
   }
 """
-    schemaManager.execute(new StringReader(updatedScript))
+    casslog.execute(new StringReader(updatedScript))
 
     assertTableExists(keyspace, 'test3')
 
     // Now let's rerun the schema change script to make sure it is a no-op. Doing this will verify that we are searching
     // across buckets for changes that have already been applied.
-    schemaManager.execute(new StringReader(updatedScript))
+    casslog.execute(new StringReader(updatedScript))
   }
 
-  @Test(expectedExceptions = ChangeSetException)
+  @Test(expectedExceptions = ChangeSetAlteredException)
   void modifyingAppliedChangeSetShouldFail() {
     String keyspace = 'fail_modified_changeset'
 
@@ -247,8 +244,8 @@ schemaChange {
     \"\"\"
 }
 """
-    SchemaManager schemaManager = new SchemaManager(keyspace: keyspace, session: session)
-    schemaManager.execute(new StringReader(script))
+    CassalogService casslog = new CassalogService(keyspace: keyspace, session: session)
+    casslog.execute(new StringReader(script))
 
     def modifiedScript = """
 schemaChange {
@@ -291,18 +288,18 @@ schemaChange {
   \"\"\"
 }
 """
-    schemaManager.execute(new StringReader(modifiedScript))
+    casslog.execute(new StringReader(modifiedScript))
 
     assertTableDoesNotExist(keyspace, 'test2')
 
     def resultSet = session.execute(
-        "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CHANGELOG_TABLE " +
+        "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE " +
         "WHERE bucket = 0"
     )
     def rows = resultSet.all()
 
-    assertEquals(rows.size(), 1)
-    assertEquals(rows[0].getString(0), 'first-table')
+    org.testng.Assert.assertEquals(rows.size(), 1)
+    org.testng.Assert.assertEquals(rows[0].getString(0), 'first-table')
   }
 
   @Test(dependsOnMethods = 'modifyingAppliedChangeSetShouldFail')
@@ -312,7 +309,7 @@ schemaChange {
     assertTableDoesNotExist(keyspace, 'test3')
   }
 
-  @Test(expectedExceptions = ChangeSetException)
+  @Test(expectedExceptions = ChangeSetAlteredException)
   void changingIdOfAppliedChangeSetShouldFail() {
     String keyspace = 'change_id'
 
@@ -332,8 +329,8 @@ schemaChange {
   \"\"\"  
 }
 """
-    def schemaManager = new SchemaManager(keyspace: keyspace, session: session)
-    schemaManager.execute(new StringReader(script))
+    def casslog = new CassalogService(keyspace: keyspace, session: session)
+    casslog.execute(new StringReader(script))
 
     def modifiedScript = """
 schemaChange {
@@ -349,17 +346,62 @@ schemaChange {
   \"\"\"
 }
 """
-    schemaManager.execute(new StringReader(modifiedScript))
+    casslog.execute(new StringReader(modifiedScript))
+  }
+
+  @Test
+  void setUpBasicValidation() {
+    resetSchema('basic_validation')
+  }
+
+  @Test(expectedExceptions = ChangeSetValidationException, dependsOnMethods = 'setUpBasicValidation')
+  void idIsRequired() {
+    String keyspace = 'basic_validation'
+
+    def script = """
+schemaChange {
+  author 'admin'
+  cql \"\"\"
+    CREATE TABLE ${keyspace}.test (
+      x int,
+      y int,
+      PRIMARY KEY (x)
+    )
+  \"\"\"
+}
+"""
+    def cassalog = new CassalogService(keyspace: keyspace, session: session)
+    cassalog.execute(new StringReader(script))
+  }
+
+  @Test(expectedExceptions = ChangeSetValidationException, dependsOnMethods = 'setUpBasicValidation')
+  void cqlIsRequired() {
+    String keyspace = 'basic_validation'
+
+    def script = """
+schemaChange {
+  author 'admin'
+  cql \"\"\"
+    CREATE TABLE ${keyspace}.test (
+      x int,
+      y int,
+      PRIMARY KEY (x)
+    )
+  \"\"\"
+}
+"""
+    def cassalog = new CassalogService(keyspace: keyspace, session: session)
+    cassalog.execute(new StringReader(script))
   }
 
   static void assertTableExists(String keyspace, String table) {
     def resultSet = session.execute(findTableName.bind(keyspace, table))
-    assertFalse(resultSet.exhausted, "The table ${keyspace}.$table does not exist")
+    org.testng.Assert.assertFalse(resultSet.exhausted, "The table ${keyspace}.$table does not exist")
   }
 
   static void assertTableDoesNotExist(String keyspace, String table) {
     def resultSet = session.execute(findTableName.bind(keyspace, table))
-    assertTrue(resultSet.exhausted, "The table ${keyspace}.$table exists")
+    org.testng.Assert.assertTrue(resultSet.exhausted, "The table ${keyspace}.$table exists")
   }
 
 }
