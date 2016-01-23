@@ -17,9 +17,13 @@
 package org.cassalog.core
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.PreparedStatement
+import com.datastax.driver.core.Row
 import com.datastax.driver.core.Session
+import org.testng.Assert
 import org.testng.annotations.BeforeClass
 import org.testng.annotations.Test
+
+import static org.testng.Assert.*
 /**
  * @author jsanda
  */
@@ -78,12 +82,12 @@ schemaChange {
     )
     def rows = resultSet.all()
 
-    org.testng.Assert.assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
-    org.testng.Assert.assertEquals(rows[0].getString(0), 'first-table')
+    Assert.assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
+    Assert.assertEquals(rows[0].getString(0), 'first-table')
     org.testng.Assert.assertNotNull(rows[0].getBytes(1))
-    org.testng.Assert.assertEquals(rows[0].getString(3), 'admin')
-    org.testng.Assert.assertEquals(rows[0].getString(4), 'test')
-    org.testng.Assert.assertTrue(rows[0].getSet(5, String.class).empty)
+    Assert.assertEquals(rows[0].getString(3), 'admin')
+    Assert.assertEquals(rows[0].getString(4), 'test')
+    assertTrue(rows[0].getSet(5, String.class).empty)
 
     Date appliedAt = rows[0].getTimestamp(2)
     org.testng.Assert.assertNotNull(appliedAt)
@@ -97,8 +101,8 @@ schemaChange {
     )
     rows = resultSet.all()
 
-    org.testng.Assert.assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
-    org.testng.Assert.assertEquals(rows[0].getTimestamp(2), appliedAt)
+    Assert.assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
+    assertEquals(rows[0].getTimestamp(2), appliedAt)
   }
 
   @Test
@@ -150,13 +154,13 @@ schemaChange {
     )
     def rows = resultSet.all()
 
-    org.testng.Assert.assertEquals(rows.size(), 2, "Expected to find two rows in $CassalogService.CHANGELOG_TABLE")
-    org.testng.Assert.assertEquals(rows[0].getString(0), 'first-table')
-    org.testng.Assert.assertEquals(rows[1].getString(0), 'second-table')
-    org.testng.Assert.assertNotNull(rows[1].getBytes(1))
-    org.testng.Assert.assertEquals(rows[1].getString(3), 'admin')
-    org.testng.Assert.assertEquals(rows[1].getString(4), 'second table test')
-    org.testng.Assert.assertEquals(rows[1].getSet(5, String.class), ['red', 'blue'] as Set)
+    assertEquals(rows.size(), 2, "Expected to find two rows in $CassalogService.CHANGELOG_TABLE")
+    assertEquals(rows[0].getString(0), 'first-table')
+    assertEquals(rows[1].getString(0), 'second-table')
+    assertNotNull(rows[1].getBytes(1))
+    assertEquals(rows[1].getString(3), 'admin')
+    assertEquals(rows[1].getString(4), 'second table test')
+    assertEquals(rows[1].getSet(5, String.class), ['red', 'blue'] as Set)
   }
 
   @Test
@@ -298,8 +302,8 @@ schemaChange {
     )
     def rows = resultSet.all()
 
-    org.testng.Assert.assertEquals(rows.size(), 1)
-    org.testng.Assert.assertEquals(rows[0].getString(0), 'first-table')
+    assertEquals(rows.size(), 1)
+    assertEquals(rows[0].getString(0), 'first-table')
   }
 
   @Test(dependsOnMethods = 'modifyingAppliedChangeSetShouldFail')
@@ -380,28 +384,89 @@ schemaChange {
 
     def script = """
 schemaChange {
+  id 'no-cql'
   author 'admin'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test (
-      x int,
-      y int,
-      PRIMARY KEY (x)
-    )
-  \"\"\"
 }
 """
     def cassalog = new CassalogService(keyspace: keyspace, session: session)
     cassalog.execute(new StringReader(script))
   }
 
+  @Test
+  void applyChangesWithTag() {
+    String keyspace = 'tags_test'
+    resetSchema(keyspace)
+
+    def change1Cql = """
+CREATE TABLE ${keyspace}.test1 (
+    x int,
+    y int,
+    PRIMARY KEY (x)
+)
+"""
+    def change2Cql = "INSERT INTO ${keyspace}.test1 (x, y) VALUES (1, 2)"
+    def change3Cql = "INSERT INTO ${keyspace}.test1 (x, y) VALUES (2, 3)"
+
+    def script = """
+schemaChange {
+  id 'table-1'
+  author 'admin'
+  cql \"\"\"$change1Cql\"\"\"
+}
+
+schemaChange {
+  id 'dev-data'
+  author 'admin'
+  tags 'dev'
+  cql "$change2Cql"
+}
+
+schemaChange {
+  id 'stage-data'
+  author 'admin'
+  tags 'stage'
+  cql "$change3Cql"
+}
+"""
+    def cassalog = new CassalogService(keyspace: keyspace, session: session)
+    def computeHash = cassalog.&computeHash
+    cassalog.execute(new StringReader(script), ['dev'])
+
+    def rows = findChangeSets(keyspace, 0)
+
+    assertEquals(rows.size(), 2)
+    assertChangeSetEquals(rows[0], new ChangeSet(id: 'table-1', author: 'admin', hash: computeHash(change1Cql)))
+    assertChangeSetEquals(rows[1], new ChangeSet(id: 'dev-data', author: 'admin', hash: computeHash(change2Cql),
+        tags: ['dev']))
+
+    cassalog.execute(new StringReader(script), ['dev'])
+  }
+
+  static def findChangeSets(keyspace, bucket) {
+    def resultSet = session.execute(
+        "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE " +
+        "WHERE bucket = $bucket"
+    )
+    return resultSet.all()
+  }
+
+  static void assertChangeSetEquals(Row actual, ChangeSet expected) {
+    assertEquals(actual.getString(0), expected.id)
+    assertEquals(actual.getBytes(1), expected.hash)
+    assertNotNull(actual.getTimestamp(2))
+    assertEquals(actual.getString(3), expected.author)
+    assertEquals(actual.getString(4), expected.description)
+    assertEquals(actual.getSet(5, String), expected.tags)
+  }
+
   static void assertTableExists(String keyspace, String table) {
     def resultSet = session.execute(findTableName.bind(keyspace, table))
-    org.testng.Assert.assertFalse(resultSet.exhausted, "The table ${keyspace}.$table does not exist")
+    assertFalse(resultSet.exhausted, "The table ${keyspace}.$table does not exist")
   }
 
   static void assertTableDoesNotExist(String keyspace, String table) {
     def resultSet = session.execute(findTableName.bind(keyspace, table))
-    org.testng.Assert.assertTrue(resultSet.exhausted, "The table ${keyspace}.$table exists")
+    assertTrue(resultSet.exhausted, "The table ${keyspace}.$table exists")
   }
 
 }

@@ -38,6 +38,10 @@ class CassalogService {
   PreparedStatement insertSchemaChange
 
   void execute(Reader script) {
+   execute(script, Collections.emptyList())
+  }
+
+  void execute(Reader script, Collection tags) {
     createSchemaChangesTableIfNecessary()
 
     insertSchemaChange = session.prepare("""
@@ -69,9 +73,11 @@ class CassalogService {
               "[${toHex(changeLog[i].hash)}] in the change log")
         }
       } else {
-        session.execute(change.cql)
-        session.execute(insertSchemaChange.bind((int) (i / bucketSize), i, change.id, new Date(), change.hash,
-            change.author, change.description, change.tags))
+        if (change.tags.empty || change.tags.containsAll(tags)) {
+          session.execute(change.cql)
+          session.execute(insertSchemaChange.bind((int) (i / bucketSize), i, change.id, new Date(), change.hash,
+              change.author, change.description, change.tags))
+        }
       }
     }
   }

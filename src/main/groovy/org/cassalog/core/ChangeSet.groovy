@@ -52,7 +52,7 @@ class ChangeSet {
    * A user-defined, optional set of tags. This field is persisted but currently not used. In the future there will be
    * support for executing change sets based on some tag matching criteria.
    */
-  Set tags
+  Set tags = [] as Set
 
   /**
    * An optional field for specifying who made the change.
