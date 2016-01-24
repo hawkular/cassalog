@@ -19,7 +19,6 @@ import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.PreparedStatement
 import com.datastax.driver.core.Row
 import com.datastax.driver.core.Session
-import org.testng.Assert
 import org.testng.annotations.BeforeClass
 import org.testng.annotations.Test
 
@@ -71,8 +70,11 @@ schemaChange {
 \"\"\"
 }
 """
+//    URI script = getClass().getResource('/single_change/schema.groovy').toURI()
+
     CassalogService casslog = new CassalogService(keyspace: keyspace, session: session)
-    casslog.execute(new StringReader(script))
+//    casslog.execute(script, [])
+    casslog.execute(new StringReader(script), [])
 
     assertTableExists(keyspace, table)
 
@@ -82,15 +84,15 @@ schemaChange {
     )
     def rows = resultSet.all()
 
-    Assert.assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
-    Assert.assertEquals(rows[0].getString(0), 'first-table')
-    org.testng.Assert.assertNotNull(rows[0].getBytes(1))
-    Assert.assertEquals(rows[0].getString(3), 'admin')
-    Assert.assertEquals(rows[0].getString(4), 'test')
+    assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
+    assertEquals(rows[0].getString(0), 'first-table')
+    assertNotNull(rows[0].getBytes(1))
+    assertEquals(rows[0].getString(3), 'admin')
+    assertEquals(rows[0].getString(4), 'test')
     assertTrue(rows[0].getSet(5, String.class).empty)
 
     Date appliedAt = rows[0].getTimestamp(2)
-    org.testng.Assert.assertNotNull(appliedAt)
+    assertNotNull(appliedAt)
 
     // Now running again should be a no op
     casslog.execute(new StringReader(script))
@@ -101,8 +103,54 @@ schemaChange {
     )
     rows = resultSet.all()
 
-    Assert.assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
+    assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
     assertEquals(rows[0].getTimestamp(2), appliedAt)
+  }
+
+  @Test
+  void executeScriptThatCreatesKeyspace() {
+    String keyspace = 'cassalog_dev'
+
+    session.execute("DROP KEYSPACE IF EXISTS cassalog_dev")
+
+    def script = """
+createKeyspace {
+  id 'create-cassalog_dev'
+  name '$keyspace'
+  author 'admin'
+  description 'create keyspace test'
+  replication {
+    replication_factor 2
+  }
+}
+"""
+    CassalogService cassalog = new CassalogService(session: session)
+    cassalog.execute(new StringReader(script))
+
+    def updatedScript = script + "\n\n" + """
+schemaChange {
+  id 'first-table'
+  author 'admin'
+  description 'test'
+  cql \"\"\"
+    CREATE TABLE ${keyspace}.test1 (
+        x int,
+        y text,
+        z text,
+        PRIMARY KEY (x, y)
+    )
+   \"\"\"
+}
+"""
+    cassalog.execute(new StringReader(updatedScript))
+
+    assertTableExists(keyspace, 'test1')
+
+    def rows = findChangeSets(keyspace, 0)
+    assertEquals(rows.size(), 2)
+    assertChangeSetEquals(rows[0], new ChangeSet(id: 'create-cassalog_dev', author: 'admin',
+        description: 'create keyspace test'))
+    assertChangeSetEquals(rows[1], new ChangeSet(id: 'first-table', author: 'admin', description: 'test'))
   }
 
   @Test
@@ -452,7 +500,7 @@ schemaChange {
 
   static void assertChangeSetEquals(Row actual, ChangeSet expected) {
     assertEquals(actual.getString(0), expected.id)
-    assertEquals(actual.getBytes(1), expected.hash)
+    assertNotNull(actual.getBytes(1))
     assertNotNull(actual.getTimestamp(2))
     assertEquals(actual.getString(3), expected.author)
     assertEquals(actual.getString(4), expected.description)

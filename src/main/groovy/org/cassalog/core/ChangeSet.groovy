@@ -20,6 +20,7 @@ import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
 
 import java.nio.ByteBuffer
+import java.security.MessageDigest
 
 /**
  * Specifies schema changes to be applied. The changes are in form of CQL statements along with an id and some optional
@@ -64,10 +65,14 @@ class ChangeSet {
    */
   String description
 
-  /**
-   * The CQL to execute. It is not stored in the database.
-   */
-  String cql
+  ByteBuffer getHash() {
+    if (hash == null) {
+      def sha1 = MessageDigest.getInstance("SHA1")
+      def digest = sha1.digest(cql.bytes)
+      hash = ByteBuffer.wrap(digest)
+    }
+    return hash
+  }
 
   void id(String id) {
     this.id = id
@@ -81,12 +86,14 @@ class ChangeSet {
     this.description = description;
   }
 
-  void cql(String cql) {
-    this.cql = cql;
-  }
-
   void tags(String... tags) {
     this.tags = tags as Set
+  }
+
+  void validate() {
+    if (id == null) {
+      throw new ChangeSetValidationException('The id property must be set')
+    }
   }
 
 }
