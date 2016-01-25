@@ -37,16 +37,26 @@ class CassalogService {
 
   PreparedStatement insertSchemaChange
 
-  void execute(Reader script) {
-   execute(script, Collections.emptyList())
+  void execute(URI script) {
+    execute(script, Collections.emptySet())
   }
 
-  void execute(Reader script, Collection tags) {
+  void execute(URI script, Map vars) {
+    execute(script, Collections.emptySet(), vars)
+  }
+
+  void execute(URI script, Collection tags) {
+    execute(script, tags, [keyspace: keyspace])
+  }
+
+  void execute(URI script, Collection tags, Map vars) {
     def schemaChanges = []
     def changeLog
 
-    GroovyShell shell = new GroovyShell(createBinding(schemaChanges))
-    shell.evaluate(script)
+    GroovyShell shell = new GroovyShell(createBinding(schemaChanges, vars))
+    Script parsedScript = shell.parse(script)
+    parsedScript.setProperty('keyspsace', vars.keyspace)
+    parsedScript.run()
 
     if (schemaChanges[0] instanceof CreateKeyspace) {
       keyspace = schemaChanges[0].name
@@ -58,6 +68,10 @@ class CassalogService {
             schemaChanges[0].author, schemaChanges[0].description, schemaChanges[0].tags))
       }
 
+    }
+
+    if (keyspace == null) {
+      throw new KeyspaceUndefinedException()
     }
 
     createSchemaChangesTableIfNecessary()
@@ -91,69 +105,26 @@ class CassalogService {
     }
   }
 
-  void execute(URI script) {
-    execute(script, Collections.emptySet())
+  Binding createBinding(List schemaChanges, Map vars) {
+    Map scriptVars = new HashMap(vars)
+    Binding binding = new Binding(scriptVars)
+    scriptVars.createKeyspace = { schemaChanges << createKeyspace(it, binding) }
+    scriptVars.schemaChange = { schemaChanges << createSchemaChange(it, binding) }
+    return new Binding(scriptVars)
   }
 
-  void execute(URI script, Collection tags) {
-    createSchemaChangesTableIfNecessary()
-
-    insertSchemaChange = session.prepare("""
-      INSERT INTO ${keyspace}.$CHANGELOG_TABLE (bucket, revision, id, applied_at, hash, author, description, tags)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      """
-    )
-
-    def changeLog = new ChangeLog(session: session, keyspace: keyspace,  bucketSize: bucketSize)
-    changeLog.load()
-
-    def schemaChanges = []
-
-    GroovyShell shell = new GroovyShell(createBinding(schemaChanges))
-    shell.evaluate(script)
-
-    schemaChanges.eachWithIndex{ ChangeSet change, int i ->
-      validate(change)
-      change.hash = computeHash(change.cql)
-
-      if (i < changeLog.size) {
-        if (changeLog[i].id != change.id) {
-          throw new ChangeSetAlteredException("The id [$change.id] for $change does not match the id " +
-              "[${changeLog[i].id}] in the change log")
-        }
-
-        if (changeLog[i].hash != change.hash) {
-          throw new ChangeSetAlteredException("The hash [${toHex(change.hash)}] for $change does not match the hash " +
-              "[${toHex(changeLog[i].hash)}] in the change log")
-        }
-      } else {
-        if (change.tags.empty || change.tags.containsAll(tags)) {
-          session.execute(change.cql)
-          session.execute(insertSchemaChange.bind((int) (i / bucketSize), i, change.id, new Date(), change.hash,
-              change.author, change.description, change.tags))
-        }
-      }
-    }
-  }
-
-  Binding createBinding(List schemaChanges) {
-    return new Binding(
-        createKeyspace : { schemaChanges << createKeyspace(it) },
-        schemaChange: { schemaChanges << createSchemaChange(it) }
-    )
-  }
-
-  def createKeyspace(Closure closure) {
+  def createKeyspace(Closure closure, Binding binding) {
     closure.delegate = new CreateKeyspace()
-    def code = closure.rehydrate(closure.delegate, this, this)
-    code.resolveStrategy = Closure.DELEGATE_ONLY
+    def code = closure.rehydrate(closure.delegate, binding, this)
+    code.resolveStrategy = Closure.DELEGATE_FIRST
+
     code()
     return code.delegate
   }
 
-  def createSchemaChange(@DelegatesTo(strategy = Closure.DELEGATE_FIRST, value = ChangeSet) Closure closure) {
+  def createSchemaChange(Closure closure, Binding binding) {
     closure.delegate = new CqlChangeSet()
-    def code = closure.rehydrate(closure.delegate, this, this)
+    def code = closure.rehydrate(closure.delegate, binding, this)
     code.resolveStrategy = Closure.DELEGATE_FIRST
     code()
     return code.delegate

@@ -35,9 +35,10 @@ class CreateKeyspace extends ChangeSet {
   ReplicationSettings replication = new ReplicationSettings()
 
   String getCql() {
-    return """
+    def cql = """
 CREATE KEYSPACE $name WITH replication = { 'class': '${replication.strategy}', 'replication_factor': ${replication.replicationFactor} }
 """
+    return cql
   }
 
   void name(String name) {
@@ -64,5 +65,12 @@ CREATE KEYSPACE $name WITH replication = { 'class': '${replication.strategy}', '
       throw new ChangeSetValidationException('The name property must be set')
     }
   }
+
+//  def getProperty(String property) {
+//    if (property == 'keyspace') {
+//      return 'TEST'
+//    }
+//    return super.getProperty(property)
+//  }
 
 }

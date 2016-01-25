@@ -49,40 +49,19 @@ class CassalogServiceTest {
   }
 
   @Test
-  void executeScriptWithSingleChange() {
+  void applySingleChangeToExistingKeyspace() {
     String keyspace = 'single_change'
 
     resetSchema(keyspace)
 
-    String table = 'test1'
-    def script = """
-schemaChange {
-  id 'first-table'
-  author 'admin'
-  description 'test'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test1 (
-      x int,
-      y text,
-      z text,
-      PRIMARY KEY (x, y)
-    )
-\"\"\"
-}
-"""
-//    URI script = getClass().getResource('/single_change/schema.groovy').toURI()
+    URI script = getClass().getResource('/single_change/schema.groovy').toURI()
 
     CassalogService casslog = new CassalogService(keyspace: keyspace, session: session)
-//    casslog.execute(script, [])
-    casslog.execute(new StringReader(script), [])
+    casslog.execute(script)
 
-    assertTableExists(keyspace, table)
+    assertTableExists(keyspace, 'test1')
 
-    def resultSet = session.execute(
-        "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE " +
-        "WHERE bucket = 0"
-    )
-    def rows = resultSet.all()
+    def rows = findChangeSets(keyspace, 0)
 
     assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
     assertEquals(rows[0].getString(0), 'first-table')
@@ -95,54 +74,29 @@ schemaChange {
     assertNotNull(appliedAt)
 
     // Now running again should be a no op
-    casslog.execute(new StringReader(script))
+    casslog.execute(script)
 
-    resultSet = session.execute(
-       "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE " +
-       "WHERE bucket = 0"
-    )
-    rows = resultSet.all()
-
+    rows = findChangeSets(keyspace, 0)
     assertEquals(rows.size(), 1, "Expected to find one row in $CassalogService.CHANGELOG_TABLE")
     assertEquals(rows[0].getTimestamp(2), appliedAt)
   }
 
   @Test
   void executeScriptThatCreatesKeyspace() {
-    String keyspace = 'cassalog_dev'
+    def keyspace = 'cassalog_dev'
+    def change1Id = 'create-cassalog_dev'
+    def change2Id = 'first-table'
 
     session.execute("DROP KEYSPACE IF EXISTS cassalog_dev")
 
-    def script = """
-createKeyspace {
-  id 'create-cassalog_dev'
-  name '$keyspace'
-  author 'admin'
-  description 'create keyspace test'
-  replication {
-    replication_factor 2
-  }
-}
-"""
-    CassalogService cassalog = new CassalogService(session: session)
-    cassalog.execute(new StringReader(script))
+    def script = getClass().getResource('/create_keyspace/script1.groovy').toURI()
 
-    def updatedScript = script + "\n\n" + """
-schemaChange {
-  id 'first-table'
-  author 'admin'
-  description 'test'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test1 (
-        x int,
-        y text,
-        z text,
-        PRIMARY KEY (x, y)
-    )
-   \"\"\"
-}
-"""
-    cassalog.execute(new StringReader(updatedScript))
+    CassalogService cassalog = new CassalogService(session: session)
+    cassalog.execute(script, [keyspace: keyspace, id1: change1Id])
+
+
+    def updatedScript = getClass().getResource('/create_keyspace/script2.groovy').toURI()
+    cassalog.execute(updatedScript, [keyspace: keyspace, id1: change1Id, id2: change2Id])
 
     assertTableExists(keyspace, 'test1')
 
@@ -159,40 +113,13 @@ schemaChange {
 
     resetSchema(keyspace)
 
-    def script = """
-schemaChange {
-  id 'first-table'
-  author 'admin'
-  description 'test'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test1 (
-      x int,
-      y text,
-      z text,
-      PRIMARY KEY (x, y)
-    )
-\"\"\"
-}
-"""
+    def script1 = getClass().getResource("/append_changes/script1.groovy").toURI()
+    def script2 = getClass().getResource("/append_changes/script2.groovy").toURI()
 
-    def updatedScript = script + "\n\n" + """
-schemaChange {
-  id 'second-table'
-  author 'admin'
-  description 'second table test'
-  tags 'red', 'blue'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test2 (
-        x2 int,
-        y2 text,
-        z2 text,
-        PRIMARY KEY (x2, y2)
-    )
-    \"\"\"
-}
-"""
-    CassalogService casslog = new CassalogService(keyspace: keyspace, session: session)
-    casslog.execute(new StringReader(updatedScript))
+    CassalogService cassalog = new CassalogService(keyspace: keyspace, session: session)
+
+    cassalog.execute(script1, [keyspace: keyspace])
+    cassalog.execute(script2, [keyspace: keyspace])
 
     assertTableExists(keyspace, 'test2')
 
@@ -217,62 +144,18 @@ schemaChange {
 
     resetSchema(keyspace)
 
-    def script = """
-schemaChange {
-  id 'first-table'
-  author 'admin'
-  description 'test'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test1(
-        x1 int,
-        y1 text,
-        z1 text,
-        PRIMARY KEY(x1, y1)
-    )
-    \"\"\"
-  }
+    def script1 = getClass().getResource('/multiple_buckets/script1.groovy').toURI()
+    def script2 = getClass().getResource('/multiple_buckets/script2.groovy').toURI()
 
-  schemaChange {
-    id 'second-table'
-    author 'admin'
-    description 'second table test'
-    tags 'red', 'blue'
-    cql \"\"\"
-    CREATE TABLE ${keyspace}.test2 (
-        x2 int,
-        y2 text,
-        z2 text,
-        PRIMARY KEY(x2, y2)
-    )
-    \"\"\"
-}
-"""
-    def casslog = new CassalogService(keyspace: keyspace, session: session, bucketSize: 2)
-    casslog.execute(new StringReader(script))
-
-    def updatedScript = script + "\n\n" + """
-  schemaChange {
-    id 'third-table'
-    author 'admin'
-    description '3rd table'
-    tags '1', '2', '3'
-    cql \"\"\"
-      CREATE TABLE ${keyspace}.test3 (
-        x3 text,
-        y3 int,
-        z3 text,
-        PRIMARY KEY (x3, z3)
-      )
-    \"\"\"
-  }
-"""
-    casslog.execute(new StringReader(updatedScript))
+    def cassalog = new CassalogService(keyspace: keyspace, session: session, bucketSize: 2)
+    cassalog.execute(script1, [keyspace: keyspace])
+    cassalog.execute(script2)
 
     assertTableExists(keyspace, 'test3')
 
     // Now let's rerun the schema change script to make sure it is a no-op. Doing this will verify that we are searching
     // across buckets for changes that have already been applied.
-    casslog.execute(new StringReader(updatedScript))
+    cassalog.execute(script2, [keyspace: keyspace])
   }
 
   @Test(expectedExceptions = ChangeSetAlteredException)
@@ -281,74 +164,16 @@ schemaChange {
 
     resetSchema(keyspace)
 
-    def script = """
-schemaChange {
-  id 'first-table'
-  author 'admin'
-  description 'test 1'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test1 (
-        x1 int,
-        y1 text,
-        z1 text,
-        PRIMARY KEY (x1, y1)
-    )
-    \"\"\"
-}
-"""
-    CassalogService casslog = new CassalogService(keyspace: keyspace, session: session)
-    casslog.execute(new StringReader(script))
+    def script = getClass().getResource('/fail_modified_changeset/script1.groovy').toURI()
+    def modifiedScript = getClass().getResource('/fail_modified_changeset/script2.groovy').toURI()
 
-    def modifiedScript = """
-schemaChange {
-  id 'first-table'
-  author 'admin'
-  description 'test 1'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test1 (
-      x1 int,
-      y1 text,
-      z1 text,
-      PRIMARY KEY (x1, z1)
-    )
-  \"\"\"
-}
-
-schemaChange {
-  id 'second-table'
-  author 'admin'
-  description 'test 2'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test2 (
-      x2 text,
-      y2 text,
-      PRIMARY KEY (x2)
-    )
-  \"\"\"
-}
-
-schemaChange {
-  id 'third-table'
-  author 'admin'
-  description 'test 3'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test3 (
-      x3 int,
-      y3 text,
-      PRIMARY KEY (x3)
-    )
-  \"\"\"
-}
-"""
-    casslog.execute(new StringReader(modifiedScript))
+    CassalogService cassalog = new CassalogService(keyspace: keyspace, session: session)
+    cassalog.execute(script, [keyspace: keyspace])
+    cassalog.execute(modifiedScript, [keyspace: keyspace])
 
     assertTableDoesNotExist(keyspace, 'test2')
 
-    def resultSet = session.execute(
-        "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE " +
-        "WHERE bucket = 0"
-    )
-    def rows = resultSet.all()
+    def rows = findChangeSets(keyspace, 0)
 
     assertEquals(rows.size(), 1)
     assertEquals(rows[0].getString(0), 'first-table')
@@ -367,38 +192,12 @@ schemaChange {
 
     resetSchema(keyspace)
     
-    def script = """
-schemaChange {
-  id 'first-table'
-  author 'admin'
-  description 'test 1'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test1 (
-      x int,
-      y int,
-      PRIMARY KEY (x)
-    )
-  \"\"\"  
-}
-"""
-    def casslog = new CassalogService(keyspace: keyspace, session: session)
-    casslog.execute(new StringReader(script))
+    def script = getClass().getResource('/change_id/script1.groovy').toURI()
+    def modifiedScript = getClass().getResource('/change_id/script2.groovy').toURI()
 
-    def modifiedScript = """
-schemaChange {
-  id 'table-1'
-  author 'admin'
-  description 'test 1'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test1 (
-      x int,
-      y int,
-      PRIMARY KEY (x)
-    )
-  \"\"\"
-}
-"""
-    casslog.execute(new StringReader(modifiedScript))
+    def casslog = new CassalogService(keyspace: keyspace, session: session)
+    casslog.execute(script, [keyspace: keyspace])
+    casslog.execute(modifiedScript, [keyspace: keyspace])
   }
 
   @Test
@@ -410,34 +209,18 @@ schemaChange {
   void idIsRequired() {
     String keyspace = 'basic_validation'
 
-    def script = """
-schemaChange {
-  author 'admin'
-  cql \"\"\"
-    CREATE TABLE ${keyspace}.test (
-      x int,
-      y int,
-      PRIMARY KEY (x)
-    )
-  \"\"\"
-}
-"""
+    def script = getClass().getResource('/basic_validation/script1.groovy').toURI()
     def cassalog = new CassalogService(keyspace: keyspace, session: session)
-    cassalog.execute(new StringReader(script))
+    cassalog.execute(script, [keyspace: keyspace])
   }
 
   @Test(expectedExceptions = ChangeSetValidationException, dependsOnMethods = 'setUpBasicValidation')
   void cqlIsRequired() {
     String keyspace = 'basic_validation'
 
-    def script = """
-schemaChange {
-  id 'no-cql'
-  author 'admin'
-}
-"""
+    def script = getClass().getResource('/basic_validation/script2.groovy').toURI()
     def cassalog = new CassalogService(keyspace: keyspace, session: session)
-    cassalog.execute(new StringReader(script))
+    cassalog.execute(script, [keyspace: keyspace])
   }
 
   @Test
@@ -445,49 +228,25 @@ schemaChange {
     String keyspace = 'tags_test'
     resetSchema(keyspace)
 
-    def change1Cql = """
-CREATE TABLE ${keyspace}.test1 (
-    x int,
-    y int,
-    PRIMARY KEY (x)
-)
-"""
-    def change2Cql = "INSERT INTO ${keyspace}.test1 (x, y) VALUES (1, 2)"
-    def change3Cql = "INSERT INTO ${keyspace}.test1 (x, y) VALUES (2, 3)"
+    def script = getClass().getResource('/tags_test/script1.groovy').toURI()
 
-    def script = """
-schemaChange {
-  id 'table-1'
-  author 'admin'
-  cql \"\"\"$change1Cql\"\"\"
-}
-
-schemaChange {
-  id 'dev-data'
-  author 'admin'
-  tags 'dev'
-  cql "$change2Cql"
-}
-
-schemaChange {
-  id 'stage-data'
-  author 'admin'
-  tags 'stage'
-  cql "$change3Cql"
-}
-"""
     def cassalog = new CassalogService(keyspace: keyspace, session: session)
-    def computeHash = cassalog.&computeHash
-    cassalog.execute(new StringReader(script), ['dev'])
+    cassalog.execute(script, ['dev'], [keyspace: keyspace])
 
-    def rows = findChangeSets(keyspace, 0)
+    def changeLogRows = findChangeSets(keyspace, 0)
 
-    assertEquals(rows.size(), 2)
-    assertChangeSetEquals(rows[0], new ChangeSet(id: 'table-1', author: 'admin', hash: computeHash(change1Cql)))
-    assertChangeSetEquals(rows[1], new ChangeSet(id: 'dev-data', author: 'admin', hash: computeHash(change2Cql),
-        tags: ['dev']))
+    def verifyChangeLog = { rows ->
+      assertEquals(rows.size(), 2)
+      assertChangeSetEquals(rows[0], new ChangeSet(id: 'table-1', author: 'admin'))
+      assertChangeSetEquals(rows[1], new ChangeSet(id: 'dev-data', author: 'admin', tags: ['dev']))
+    }
+    verifyChangeLog(changeLogRows)
 
-    cassalog.execute(new StringReader(script), ['dev'])
+    cassalog.execute(script, ['dev'], [keyspace: keyspace])
+
+    // Make sure that the change log has not been altered
+    changeLogRows = findChangeSets(keyspace, 0)
+    verifyChangeLog(changeLogRows)
   }
 
   static def findChangeSets(keyspace, bucket) {
