@@ -1,0 +1,44 @@
+= Cassalog
+
+Cassalog is a schema change management library and tool for
+http://cassandra.apache.org[Apache Cassandra] that can be used with
+applications running on the JVM.
+
+== Why?
+Just as application code evolves and changes so do database schemas. There are
+similar tools like http://www.liquibase.org/[Liquibase] and
+http://flywaydb.org/[Flyway]; however, they are designed specifically for
+relational databases. Cassalog is designed solely for use with Cassandra, not
+for any other database systems.
+
+Cassalog is written in Groovy. There are several reasons for this. First,
+Groovy offers great interoperability with Java, making it usable and accessible
+to application running on the JVM. Groovy's dynamic and meta programming
+features make it easy to write domain specific languages. Groovy has multi-line
+strings and string interpolation out of the box, both of which can be really
+useful for writing schema change scripts. Lastly, with Cassalog schema changes
+are not written in XML or JSON. Instead they are written as Groovy scripts
+giving you the full power and flexibility of Groovy.
+
+== Building from Source
+Cassandra is built with Maven and requires a JVM version 1.7 or later. Test
+execution requires a running Cassandra cluster (which can be a single node) with
+a node listening on 127.0.0.1. Cassandra 2.0 or later should be used.
+
+[source,bash]
+----
+git clone https://github.com/jsanda/cassalog.git
+cd cassalog
+mvn install
+----
+
+TIP: If you want to build without having a running Cassandra instance, you can
+run `mvn install -DskipTests`
+
+== Setting up Cassandra for development or testing
+The recommended way to set up Cassandra is by using
+https://github.com/pcmanus/ccm[ccm (Cassandra Cluster Manager)].
+
+As Cassalog evolves and looks to support different versions of Cassandra and
+CQL, ccm is the likely tool of choice to use for testing against different
+versions.

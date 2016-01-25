@@ -23,7 +23,7 @@ import java.security.MessageDigest
 /**
  * @author jsanda
  */
-class CassalogService {
+class Cassalog {
 
   static final String CHANGELOG_TABLE = 'schema_changelog'
 
