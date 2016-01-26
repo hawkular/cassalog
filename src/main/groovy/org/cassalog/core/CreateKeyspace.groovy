@@ -26,9 +26,15 @@ import groovy.transform.ToString
 @EqualsAndHashCode(includeFields = true, callSuper = true)
 class CreateKeyspace extends ChangeSet {
 
+  /**
+   * The keyspace name
+   */
   String name
 
-  boolean use
+  /**
+   * If set to true, Cassalog will set this as the active keyspace when applying changes. True by default.
+   */
+  boolean active = true
 
   boolean durableWrites
 
@@ -45,8 +51,8 @@ CREATE KEYSPACE $name WITH replication = { 'class': '${replication.strategy}', '
     this.name = name
   }
 
-  void use(boolean use) {
-    this.use = use
+  void active(boolean use) {
+    this.active = use
   }
 
   void durable_writes(durableWrites) {
@@ -65,12 +71,5 @@ CREATE KEYSPACE $name WITH replication = { 'class': '${replication.strategy}', '
       throw new ChangeSetValidationException('The name property must be set')
     }
   }
-
-//  def getProperty(String property) {
-//    if (property == 'keyspace') {
-//      return 'TEST'
-//    }
-//    return super.getProperty(property)
-//  }
 
 }

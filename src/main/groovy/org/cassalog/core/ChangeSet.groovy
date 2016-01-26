@@ -90,6 +90,12 @@ class ChangeSet {
     this.tags = tags as Set
   }
 
+  /**
+   * Perform basic validation to ensure required fields are set. Subclasses should override this to perform
+   * additional validation.
+   *
+   * @throws ChangeSetValidationException if {@link #getId()} is null
+   */
   void validate() {
     if (id == null) {
       throw new ChangeSetValidationException('The id property must be set')

@@ -55,16 +55,16 @@ class ChangeLog {
   void load() {
     loadBucket = session.prepare("""
       SELECT id, applied_at, hash, author, description, tags
-      FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE
+      FROM ${keyspace}.$Cassalog.CHANGELOG_TABLE
       WHERE bucket = ?
       """
     )
-    def bucketResultSet = session.execute("SELECT DISTINCT bucket FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE")
+    def bucketResultSet = session.execute("SELECT DISTINCT bucket FROM ${keyspace}.$Cassalog.CHANGELOG_TABLE")
     if (!bucketResultSet.exhausted) {
       int bucket = bucketResultSet.all().max { it.getInt(0) }.getInt(0)
       def revisionsResultSet = session.execute("""
         SELECT revision
-        FROM ${keyspace}.$CassalogService.CHANGELOG_TABLE
+        FROM ${keyspace}.$Cassalog.CHANGELOG_TABLE
         WHERE bucket = $bucket ORDER BY revision DESC
         """
       )

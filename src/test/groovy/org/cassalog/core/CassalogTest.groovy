@@ -108,6 +108,41 @@ class CassalogTest {
   }
 
   @Test
+  void createAndUseKeyspace() {
+    def keyspace = 'cassalog_dev'
+    def change1Id = 'keyspsace-test'
+    def change2Id = 'table-test'
+
+    session.execute("DROP KEYSPACE IF EXISTS $keyspace")
+
+    def script = getClass().getResource('/create_keyspace/script3.groovy').toURI()
+
+    def cassalog = new Cassalog(session: session)
+    cassalog.execute(script, [keyspace: keyspace, change1Id: change1Id, change2Id: change2Id])
+
+    assertTableExists(keyspace, 'test1')
+
+    def rows = findChangeSets(keyspace, 0)
+    assertEquals(rows.size(), 2)
+    assertChangeSetEquals(rows[0], new ChangeSet(id: change1Id, author: 'admin', description: 'create keyspace test'))
+    assertChangeSetEquals(rows[1], new ChangeSet(id: change2Id, author: 'admin', description: 'test'))
+  }
+
+  @Test(expectedExceptions = [ChangeSetException])
+  void createAndDoNotUseKeyspace() {
+    def keyspace = 'cassalog_dev'
+    def change1Id = 'keyspsace-test'
+    def change2Id = 'table-test'
+
+    session.execute("DROP KEYSPACE IF EXISTS $keyspace")
+
+    def script = getClass().getResource('/create_keyspace/script4.groovy').toURI()
+
+    def cassalog = new Cassalog(session: session)
+    cassalog.execute(script, [keyspace: keyspace, change1Id: change1Id, change2Id: change2Id])
+  }
+
+  @Test
   void appendChangesToExistingScript() {
     String keyspace = 'append_changes'
 

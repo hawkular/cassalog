@@ -17,6 +17,12 @@
 package org.cassalog.core
 
 /**
+ * Thrown when trying to run Cassalog without having set the keyspace. There are two ways in which the keyspace can be
+ * set. First is by setting the keyspace property on the Cassalog instance. Second is by using the createKeyspace
+ * function as the first function in a script. When the createKeyspace function is the first function used in a script,
+ * Cassalog will used the specified keyspace for the script execution. That is, it will look for or create the change
+ * log table in that script.
+ *
  * @author jsanda
  */
 class KeyspaceUndefinedException extends RuntimeException {
