@@ -125,6 +125,11 @@ class Cassalog {
     Binding binding = new Binding(scriptVars)
     scriptVars.createKeyspace = { schemaChanges << createKeyspace(it, binding) }
     scriptVars.schemaChange = { schemaChanges << createCqlChangeSet(it, binding) }
+
+    def setKeyspace = { keyspace -> return new SetKeyspace(name: keyspace) }
+    setKeyspace.delegate = binding
+
+    scriptVars.setKeyspace = { schemaChanges << setKeyspace(it)}
     return new Binding(scriptVars)
   }
 
@@ -143,6 +148,10 @@ class Cassalog {
     code.resolveStrategy = Closure.DELEGATE_FIRST
     code()
     return code.delegate
+  }
+
+  def include(String script) {
+
   }
 
   boolean keyspaceExists() {
