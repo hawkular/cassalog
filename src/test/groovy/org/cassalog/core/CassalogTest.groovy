@@ -30,11 +30,15 @@ class CassalogTest {
 
   static Session session
 
+  static Session cassalogSession
+
   static PreparedStatement findTableName
+
+  static Cluster cluster
 
   @BeforeClass
   static void initTest() {
-    Cluster cluster = new Cluster.Builder().addContactPoint('127.0.0.1').build()
+    cluster = new Cluster.Builder().addContactPoint('127.0.0.1').build()
     session = cluster.connect()
     findTableName = session.prepare(
       "SELECT columnfamily_name FROM system.schema_columnfamilies " +
@@ -83,11 +87,11 @@ class CassalogTest {
 
   @Test
   void executeScriptThatCreatesKeyspace() {
-    def keyspace = 'cassalog_dev'
+    def keyspace = 'cassalog_create_ks'
     def change1Id = 'create-cassalog_dev'
     def change2Id = 'first-table'
 
-    session.execute("DROP KEYSPACE IF EXISTS cassalog_dev")
+    session.execute("DROP KEYSPACE IF EXISTS $keyspace")
 
     def script = getClass().getResource('/create_keyspace/script1.groovy').toURI()
 
@@ -109,7 +113,7 @@ class CassalogTest {
 
   @Test
   void createAndUseKeyspace() {
-    def keyspace = 'cassalog_dev'
+    def keyspace = 'cassalog_create_use_ks'
     def change1Id = 'keyspsace-test'
     def change2Id = 'table-test'
 
@@ -130,7 +134,7 @@ class CassalogTest {
 
   @Test(expectedExceptions = [ChangeSetException])
   void createAndDoNotUseKeyspace() {
-    def keyspace = 'cassalog_dev'
+    def keyspace = 'cassalog_do_not_use_ks'
     def change1Id = 'keyspsace-test'
     def change2Id = 'table-test'
 
@@ -140,6 +144,35 @@ class CassalogTest {
 
     def cassalog = new Cassalog(session: session)
     cassalog.execute(script, [keyspace: keyspace, change1Id: change1Id, change2Id: change2Id])
+  }
+
+  @Test
+  void recreateKeyspace() {
+    def keyspace = 'cassalog_recreate_ks'
+    def id1 = 'recreate-test'
+
+    def script = getClass().getResource('/create_keyspace/script5.groovy').toURI()
+
+//    def cluster2 = new Cluster.Builder().addContactPoint('127.0.0.1').build()
+//    def session2 = cluster2.connect()
+
+    def cassalog = new Cassalog(session: session)
+    cassalog.execute(script, [keyspace: keyspace, id1: id1])
+
+    def rows = findChangeSets(keyspace, 0)
+    assertEquals(rows.size(), 1)
+
+    Date dateApplied = rows[0].getTimestamp(2)
+
+    // We will rerun the script and since the recreate attribute is set to true, Cassalog should drop the keyspace
+    // and recreate it. This of course will result in the change log table being recreated. We should still only
+    // have a single row in the change log. The timestamp should be later though.
+    cassalog.execute(script, [keyspace: keyspace, id1: id1])
+
+    rows = findChangeSets(keyspace, 0)
+    assertEquals(rows.size(), 1)
+
+    assertTrue(dateApplied < rows[0].getTimestamp(2))
   }
 
   @Test

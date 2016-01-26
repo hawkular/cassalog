@@ -13,7 +13,7 @@ schemaChange {
   author 'admin'
   description 'test'
   cql """
-    CREATE TABLE cassalog_dev.test1 (
+    CREATE TABLE ${keyspace}.test1 (
         x int,
         y text,
         z text,

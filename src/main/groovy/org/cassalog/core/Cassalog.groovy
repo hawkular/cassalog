@@ -59,6 +59,9 @@ class Cassalog {
 
     if (changeSets[0] instanceof CreateKeyspace) {
       keyspace = changeSets[0].name
+      if (changeSets[0].recreate) {
+        session.execute("DROP KEYSPACE IF EXISTS $keyspace")
+      }
       if (!keyspaceExists()) {
         session.execute(changeSets[0].cql)
         createChangeLogTableIfNecessary()

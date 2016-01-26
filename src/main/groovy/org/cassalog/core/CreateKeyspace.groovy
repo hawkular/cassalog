@@ -38,6 +38,13 @@ class CreateKeyspace extends ChangeSet {
 
   boolean durableWrites
 
+  /**
+   * If set to true, Cassalog will drop the keyspace if it exists before creating it. This behavior only applies to
+   * the initial change set. This setting can be useful in an environment for running automated tests in which you
+   * want to start with a new schema for each test run. False by default.
+   */
+  boolean recreate
+
   ReplicationSettings replication = new ReplicationSettings()
 
   String getCql() {
@@ -53,6 +60,10 @@ CREATE KEYSPACE $name WITH replication = { 'class': '${replication.strategy}', '
 
   void active(boolean use) {
     this.active = use
+  }
+
+  void recreate(boolean recreate) {
+    this.recreate = recreate
   }
 
   void durable_writes(durableWrites) {
