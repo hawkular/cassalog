@@ -18,12 +18,14 @@ package org.cassalog.core
 import com.datastax.driver.core.PreparedStatement
 import com.datastax.driver.core.Session
 import com.datastax.driver.core.exceptions.InvalidQueryException
+import groovy.util.logging.Slf4j
 
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 /**
  * @author jsanda
  */
+@Slf4j
 class Cassalog {
 
   static final String CHANGELOG_TABLE = 'schema_changelog'
@@ -51,6 +53,8 @@ class Cassalog {
   }
 
   void execute(URI script, Collection tags, Map vars) {
+    log.info("Executing ${[script: script, tags: tags, vars: vars]}")
+
     def changeSets = []
     def changeLog
 
@@ -60,12 +64,14 @@ class Cassalog {
     if (changeSets[0] instanceof CreateKeyspace) {
       keyspace = changeSets[0].name
       if (changeSets[0].recreate) {
+        log.debug("Dropping keyspace $keyspace")
         session.execute("DROP KEYSPACE IF EXISTS $keyspace")
       }
       if (!keyspaceExists()) {
-        session.execute(changeSets[0].cql)
+        applyChangeSet(changeSets[0])
         createChangeLogTableIfNecessary()
         initPreparedStatements()
+
         session.execute(insertSchemaChange.bind(0, 0, changeSets[0].id, new Date(), changeSets[0].hash,
             changeSets[0].author, changeSets[0].description, changeSets[0].tags))
       }
@@ -103,7 +109,7 @@ class Cassalog {
       } else {
         if (change.tags.empty || change.tags.containsAll(tags)) {
           try {
-            session.execute(change.cql)
+            applyChangeSet(change)
             session.execute(insertSchemaChange.bind((int) (i / bucketSize), i, change.id, new Date(), change.hash,
                 change.author, change.description, change.tags))
           } catch (InvalidQueryException e) {
@@ -163,6 +169,7 @@ class Cassalog {
         "WHERE keyspace_name = '$keyspace' AND columnfamily_name = '$CHANGELOG_TABLE'"
     )
     if (resultSet.exhausted) {
+      log.info("Creating change log table ${keyspace}.$CHANGELOG_TABLE")
       session.execute("""
 CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
   bucket int,
@@ -177,6 +184,15 @@ CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
 )
 """)
     }
+  }
+
+  def applyChangeSet(ChangeSet changeSet) {
+    log.info("""Applying ChangeSet
+-- id: $changeSet.id
+$changeSet.cql
+--"""
+    )
+    session.execute(changeSet.cql)
   }
 
   def computeHash(String s) {
