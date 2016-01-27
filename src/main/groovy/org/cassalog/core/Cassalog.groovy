@@ -123,13 +123,13 @@ class Cassalog {
   Binding createBinding(List schemaChanges, Map vars) {
     Map scriptVars = new HashMap(vars)
     Binding binding = new Binding(scriptVars)
+
     scriptVars.createKeyspace = { schemaChanges << createKeyspace(it, binding) }
     scriptVars.schemaChange = { schemaChanges << createCqlChangeSet(it, binding) }
+    scriptVars.setKeyspace = { schemaChanges << new SetKeyspace(name: keyspace) }
+    scriptVars.include = { schemaChanges.addAll(include(it, vars)) }
 
-    def setKeyspace = { keyspace -> return new SetKeyspace(name: keyspace) }
-    setKeyspace.delegate = binding
 
-    scriptVars.setKeyspace = { schemaChanges << setKeyspace(it)}
     return new Binding(scriptVars)
   }
 
@@ -150,8 +150,22 @@ class Cassalog {
     return code.delegate
   }
 
-  def include(String script) {
+  def include(String script, Map vars) {
+    def dbchanges = []
 
+    def scriptVars = new HashMap(vars)
+    def binding = new Binding(scriptVars)
+
+    scriptVars.createKeyspace = { dbchanges << createKeyspace(it, binding) }
+    scriptVars.schemaChange = { dbchanges << createCqlChangeSet(it, binding) }
+    scriptVars.setKeyspace = { dbchanges << new SetKeyspace(name: keyspace) }
+    scriptVars.include = { dbchanges.addAll(include(it, vars)) }
+
+    def shell = new GroovyShell(binding)
+    def scriptURI = getClass().getResource(script).toURI()
+    shell.evaluate(scriptURI)
+
+    return dbchanges
   }
 
   boolean keyspaceExists() {
