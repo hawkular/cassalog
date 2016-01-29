@@ -28,7 +28,7 @@ import java.security.MessageDigest
 @Slf4j
 class Cassalog {
 
-  static final String CHANGELOG_TABLE = 'schema_changelog'
+  static final String CHANGELOG_TABLE = 'cassalog'
 
   static final int DEFAULT_BUCKET_SIZE = 50
 

@@ -5,11 +5,24 @@ http://cassandra.apache.org[Apache Cassandra] that can be used with
 applications running on the JVM.
 
 == Why?
-Just as application code evolves and changes so do database schemas. There are
-similar tools like http://www.liquibase.org/[Liquibase] and
-http://flywaydb.org/[Flyway]; however, they are designed specifically for
-relational databases. Cassalog is designed solely for use with Cassandra, not
-for any other database systems.
+Just as application code evolves and changes so do database schemas. If you are
+building an application and intend to support upgrading from one version to
+another, then managing schema changes is essential. If you are lucky, you might
+be able to get by with running some simple upgrade scripts to bring the schema
+up to date with the new version. This likely will not work however if you
+support multiple upgrade paths. For example, suppose we have versions 1 and 2,
+and are introducing version 3 of an application. We want to allow upgrading to
+version 3 from either 1 or 2 in addition to upgrading from 1 to 2.
+
+You could add schema upgrade logic to application code, but that is often a
+less that ideal solution as it convolutes the code base. Fortunately, there are
+tool for managing schema changes like http://www.liquibase.org/[Liquibase],
+http://flywaydb.org/[Flyway], and
+http://guides.rubyonrails.org/active_record_basics.html[Active Record] for Ruby
+on Rails applications. These tools however, are designed specifically for
+relational databases. I previously spent time trying to patch Liquibase to
+support Cassandra but found that it was not a good fit. Cassalog is designed
+solely for use with Cassandra, not for any other database systems.
 
 Cassalog is written in Groovy. There are several reasons for this. First,
 Groovy offers great interoperability with Java, making it usable and accessible
@@ -19,6 +32,237 @@ strings and string interpolation out of the box, both of which can be really
 useful for writing schema change scripts. Lastly, with Cassalog schema changes
 are not written in XML or JSON. Instead they are written as Groovy scripts
 giving you the full power and flexibility of Groovy.
+
+== Usage
+The Cassalog class is the primary class with which you will interact.
+
+[source,groovy]
+----
+// Groovy
+def script = // load schema change script
+def session = // obtain DataStax driver Session object
+def cassalog = new Cassalog(session: session)
+cassalog.execute(script)
+----
+
+[source,java]
+----
+// Java
+URI script = // load schema change script
+Session session = // obtain DataStax driver Session object
+Cassalog cassalog = new Cassalog();
+cassalog.setSession(session);
+cassalog.execute(script);
+----
+
+And here is what a cassalog script might look like,
+
+[source,groovy]
+----
+createKeyspace {
+  version '0.1'
+  name 'my_keyspace'
+  author 'admin'
+  description 'Set up a keyspace for unit tests'
+}
+
+schemaChange {
+  version '0.1.1'
+  author 'admin'
+  description 'Create table for storing time series data'
+  cql """
+CREATE TABLE metrics (
+    id uuid,
+    time timeuuid,
+    value double,
+    PRIMARY KEY (id, time)
+)
+"""
+}
+----
+
+TIP: Schema changes are applied in the order that they are declared in the
+script(s) regardless of the assigned versions.
+
+== Features
+* Tagging
+* Execute arbitrary Groovy / Java code in schema change scripts
+* Pass variables to scripts
+* Changes can stored across multiple scripts
+* Schema change detection
+
+=== Tagging
+You can specify tags when running Cassalog, e.g.
+
+[source,groovy]
+----
+// Groovy
+def script = // load schema change script
+def session = // obtain DataStax driver Session object
+def cassalog = new Cassalog(session: session)
+cassalog.execute(script, ['dev', 'test_data'])
+----
+
+[source,java]
+----
+// Java
+URI script = // load schema change script
+Session session = // obtain DataStax driver Session object
+Cassalog cassalog = new Cassalog();
+cassalog.setSession(session);
+cassalog.execute(script, Collections.asList("dev", "test_data"));
+----
+
+Cassalog will apply schema changes that have not already been run and that
+
+* Dot not specify any tags or
+* Specify tags and include the `dev` and `test_data` tags
+
+=== Execute arbitrary code
+Cassandra is frequently used for time series data. Suppose we have a metrics
+table, and we want to generate some sample data for tests.
+
+[source,groovy]
+----
+schemaChange {
+  version '1.0'
+  cql """
+CREATE TABLE metrics (
+    id text PRIMARY KEY,
+    time timestamp,
+    value double
+)
+"""
+}
+
+testData = []
+random = new Random
+10.times { i ->
+  testData << "INSERT INTO metrics (id, time, value) VALUES ('$i', ${new Date().time + 100}, ${random.nextDouble()})"
+}
+
+schemaChange {
+  version '1.0.1'
+  tags 'test_data'
+  cql testData
+}
+----
+
+This script first calls the `schemaChange` function to create the metrics table.
+The next few lines generate a list of INSERT statements with some test data.
+Finally, we have another call to `schemaChange`. It specifies the test_data
+tag and passes the `testData` list to the `cql` parameter.
+
+=== Pass variables to scripts
+You can pass arbitrary variables to scripts, not just strings.
+
+[source,groovy]
+----
+// Groovy
+def vars = [
+  metricIds: ['M1', 'M2', 'M3'],
+  startDate: new Date()
+  maxValue: 100,
+  minValue: 50
+]
+cassalog.execute(script, vars)
+----
+
+[source,java]
+----
+// Java
+Map<String, ?> vars = ImmutableMap.of(
+    "metricIds", asList("M1", "M2", "M3"),
+    "startDate", new Date(),
+    "maxValue", 100,
+    "minValue", 50
+);
+cassalog.execute(script, vars);
+----
+
+=== Changes can stored across multiple scripts
+You can use the `include` function to store changes in multiple script to
+keep your schema changes more modular and better organized.
+
+[source,groovy]
+----
+include '/dbchanges/base_tables.groovy'
+
+include '/dbchanges/seed_data.groovy'
+----
+
+The `include` function currently takes a single string argument that should
+specify the absolute path of a script on the classpath.
+
+=== Schema change detection
+Cassalog does not store the CQL code associated with each schema change. It
+computes a hash of the CQL and stores that instead. If the hash in the change
+log differs from the hash of the CQL in the source script, Cassalog will throw
+a ChangeSetAlteredException.
+
+You will need to manually resolve the issue that caused the
+ChangeSetAlteredException. Cassandra does not support transactions like a
+relational database, so there no rollback functionality to fall back on.
+
+== Change Log Table
+All schema changes are recorded in the change log table, _cassalog_. The table
+will be created the first time Cassalog is run. Change log data looks like,
+
+[noformat]
+----
+bucket | revision | applied_at               | author | description | hash         | version  | tags
+--------+----------+--------------------------+--------+-----------------------------------------------------+
+     0 |        0 | 2016-01-28 11:09:54-0500 | admin | First table  | 0xe361957eeb |      1.0 | {'legacy'}
+     0 |        1 | 2016-01-28 11:09:54-0500 | admin | Second table | 0xf336e725d4 |      1.1 | {'legacy'}
+     0 |        2 | 2016-01-28 11:09:55-0500 | admin | Third table  | 0xcecef5f840 |      1.2 | {'legacy', 'dev'}
+     0 |        3 | 2016-01-28 11:09:55-0500 | admin | Fourth table | 0x4b5d24b77c |      1.3 | {'legacy'}
+----
+
+Here is a brief overview of the schema.
+
+[noformat]
+----
+CREATE TABLE cassalog (
+    bucket int,
+    revision int,
+    applied_at timestamp,
+    author text,
+    description text,
+    hash blob,
+    version text,
+    tags set<text>,
+    PRIMARY KEY (bucket, revision)
+)
+----
+
+*author* +
+The username, or email address, etc. of the person making the change. This is
+an optional field and can be null.
+
+*description* +
+A summary of the changes. This is an optional field and can be null.
+
+*hash* +
+Cassalog does not store the CQL statements that it executes. Instead it stores a
+hash that uniquely identifies the CQL statement(s). Cassalog generates this
+hash value.
+
+*version* +
+The version can be an arbitrary string. It should be a unique identifier for the
+change; however, Cassalog does not enforce uniqueness. This is a required field.
+
+*tags* +
+An optional set of user-supplied tags.
+
+*revision* +
+Cassalog assigns a revision number to each change that it applies. It uses the
+revision number to keep track of the order in which changes are applied. If the
+order of schema changes in a source script is changed, then a
+ChangeSetAlteredException will be thrown.
+
+*bucket* +
+Cassalog stores multiple rows per physical partition. This is a revision offset.
+The bucket size defaults to 100.
 
 == Building from Source
 Cassandra is built with Maven and requires a JVM version 1.7 or later. Test
