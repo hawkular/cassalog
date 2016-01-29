@@ -1,5 +1,5 @@
 createKeyspace {
-  id id1
+  version id1
   name keyspace
   author 'admin'
   description 'create keyspace test'

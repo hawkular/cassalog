@@ -72,7 +72,7 @@ class Cassalog {
         createChangeLogTableIfNecessary()
         initPreparedStatements()
 
-        session.execute(insertSchemaChange.bind(0, 0, changeSets[0].id, new Date(), changeSets[0].hash,
+        session.execute(insertSchemaChange.bind(0, 0, changeSets[0].version, new Date(), changeSets[0].hash,
             changeSets[0].author, changeSets[0].description, changeSets[0].tags))
       }
     }
@@ -97,9 +97,9 @@ class Cassalog {
       }
 
       if (i < changeLog.size) {
-        if (changeLog[i].id != change.id) {
-          throw new ChangeSetAlteredException("The id [$change.id] for $change does not match the id " +
-              "[${changeLog[i].id}] in the change log")
+        if (changeLog[i].version != change.version) {
+          throw new ChangeSetAlteredException("The version [$change.version] for $change does not match the version " +
+              "[${changeLog[i].version}] in the change log")
         }
 
         if (changeLog[i].hash != change.hash) {
@@ -110,7 +110,7 @@ class Cassalog {
         if (change.tags.empty || change.tags.containsAll(tags)) {
           try {
             applyChangeSet(change)
-            session.execute(insertSchemaChange.bind((int) (i / bucketSize), i, change.id, new Date(), change.hash,
+            session.execute(insertSchemaChange.bind((int) (i / bucketSize), i, change.version, new Date(), change.hash,
                 change.author, change.description, change.tags))
           } catch (InvalidQueryException e) {
             throw new ChangeSetException(e)
@@ -180,7 +180,7 @@ class Cassalog {
       return
     }
     insertSchemaChange = session.prepare("""
-      INSERT INTO ${keyspace}.$CHANGELOG_TABLE (bucket, revision, id, applied_at, hash, author, description, tags)
+      INSERT INTO ${keyspace}.$CHANGELOG_TABLE (bucket, revision, version, applied_at, hash, author, description, tags)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       """
     )
@@ -197,7 +197,7 @@ class Cassalog {
 CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
   bucket int,
   revision int,
-  id text,
+  version text,
   applied_at timestamp,
   hash blob,
   author text,
@@ -211,7 +211,7 @@ CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
 
   def applyChangeSet(ChangeSet changeSet) {
     log.info("""Applying ChangeSet
--- id: $changeSet.id
+-- version: $changeSet.version
 $changeSet.cql
 --"""
     )

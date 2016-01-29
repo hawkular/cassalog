@@ -54,7 +54,7 @@ class ChangeLog {
 
   void load() {
     loadBucket = session.prepare("""
-      SELECT id, applied_at, hash, author, description, tags
+      SELECT version, applied_at, hash, author, description, tags
       FROM ${keyspace}.$Cassalog.CHANGELOG_TABLE
       WHERE bucket = ?
       """
@@ -98,7 +98,7 @@ class ChangeLog {
 
   def toChangeSet(Row row) {
     return new ChangeSet(
-        id: row.getString(0),
+        version: row.getString(0),
         appliedAt: row.getTimestamp(1),
         hash: row.getBytes(2),
         author: row.getString(3),

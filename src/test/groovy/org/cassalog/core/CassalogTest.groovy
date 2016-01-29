@@ -78,9 +78,9 @@ class CassalogTest extends CassalogBaseTest {
 
     def rows = findChangeSets(keyspace, 0)
     assertEquals(rows.size(), 2)
-    assertChangeSetEquals(rows[0], new ChangeSet(id: 'create-cassalog_dev', author: 'admin',
+    assertChangeSetEquals(rows[0], new ChangeSet(version: 'create-cassalog_dev', author: 'admin',
         description: 'create keyspace test'))
-    assertChangeSetEquals(rows[1], new ChangeSet(id: 'first-table', author: 'admin', description: 'test'))
+    assertChangeSetEquals(rows[1], new ChangeSet(version: 'first-table', author: 'admin', description: 'test'))
   }
 
   @Test
@@ -100,8 +100,8 @@ class CassalogTest extends CassalogBaseTest {
 
     def rows = findChangeSets(keyspace, 0)
     assertEquals(rows.size(), 2)
-    assertChangeSetEquals(rows[0], new ChangeSet(id: change1Id, author: 'admin', description: 'create keyspace test'))
-    assertChangeSetEquals(rows[1], new ChangeSet(id: change2Id, author: 'admin', description: 'test'))
+    assertChangeSetEquals(rows[0], new ChangeSet(version: change1Id, author: 'admin', description: 'create keyspace test'))
+    assertChangeSetEquals(rows[1], new ChangeSet(version: change2Id, author: 'admin', description: 'test'))
   }
 
   @Test(expectedExceptions = [ChangeSetException])
@@ -164,7 +164,7 @@ class CassalogTest extends CassalogBaseTest {
     assertTableExists(keyspace, 'test2')
 
     def resultSet = session.execute(
-        "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$Cassalog.CHANGELOG_TABLE " +
+        "SELECT version, hash, applied_at, author, description, tags FROM ${keyspace}.$Cassalog.CHANGELOG_TABLE " +
         "WHERE bucket = 0"
     )
     def rows = resultSet.all()
@@ -246,7 +246,7 @@ class CassalogTest extends CassalogBaseTest {
   }
 
   @Test(expectedExceptions = ChangeSetValidationException, dependsOnMethods = 'setUpBasicValidation')
-  void idIsRequired() {
+  void versionIsRequired() {
     String keyspace = 'basic_validation'
 
     def script = getClass().getResource('/basic_validation/script1.groovy').toURI()
@@ -277,8 +277,8 @@ class CassalogTest extends CassalogBaseTest {
 
     def verifyChangeLog = { rows ->
       assertEquals(rows.size(), 2)
-      assertChangeSetEquals(rows[0], new ChangeSet(id: 'table-1', author: 'admin'))
-      assertChangeSetEquals(rows[1], new ChangeSet(id: 'dev-data', author: 'admin', tags: ['dev']))
+      assertChangeSetEquals(rows[0], new ChangeSet(version: 'table-1', author: 'admin'))
+      assertChangeSetEquals(rows[1], new ChangeSet(version: 'dev-data', author: 'admin', tags: ['dev']))
     }
     verifyChangeLog(changeLogRows)
 

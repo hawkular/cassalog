@@ -1,5 +1,5 @@
 schemaChange {
-  id 'first-table'
+  version 'first-table'
   author 'admin'
   description 'test'
   cql """

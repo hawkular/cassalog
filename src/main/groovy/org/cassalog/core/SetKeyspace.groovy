@@ -27,7 +27,7 @@ class SetKeyspace extends ChangeSet {
   String name
 
   SetKeyspace() {
-    id = 'set-keyspace'
+    version = 'set-keyspace'
   }
 
   void name(String name) {

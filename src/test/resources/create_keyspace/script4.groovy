@@ -1,5 +1,5 @@
 createKeyspace {
-  id change1Id
+  version change1Id
   name keyspace
   // Note that the active attribute is set to false. This means that the following CREATE TABLE statement must
   // prefix the table name with the keyspace in order for the table to be created in the correct keyspace.
@@ -7,7 +7,7 @@ createKeyspace {
 }
 
 schemaChange {
-  id change2Id
+  version change2Id
   cql """
     CREATE TABLE test1 (
         x int,

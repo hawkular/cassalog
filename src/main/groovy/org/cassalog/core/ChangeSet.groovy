@@ -33,10 +33,10 @@ import java.security.MessageDigest
 class ChangeSet {
 
   /**
-   * A user-defined id for the ChangeSet. Note that unique ids are not enforced. If uniqueness is desired, it is the
-   * user's responsibility.
+   * A user-defined version for the ChangeSet. Version strings should be unique; however, Cassalog does not enforce
+   * it. It should also be noted that Cassalog does not enforce ordering of changes based on the version.
    */
-  String id
+  String version
 
   /**
    * A timestamp of when the schema changes are made.
@@ -74,8 +74,8 @@ class ChangeSet {
     return hash
   }
 
-  void id(String id) {
-    this.id = id
+  void version(String version) {
+    this.version = version
   }
 
   void author(String author) {
@@ -94,11 +94,11 @@ class ChangeSet {
    * Perform basic validation to ensure required fields are set. Subclasses should override this to perform
    * additional validation.
    *
-   * @throws ChangeSetValidationException if {@link #getId()} is null
+   * @throws ChangeSetValidationException if {@link #getVersion()} is null
    */
   void validate() {
-    if (id == null) {
-      throw new ChangeSetValidationException('The id property must be set')
+    if (version == null) {
+      throw new ChangeSetValidationException('The version property must be set')
     }
   }
 

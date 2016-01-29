@@ -1,5 +1,5 @@
 schemaChange {
-  id 'table-1'
+  version 'table-1'
   author 'admin'
   cql """
 CREATE TABLE ${keyspace}.test1 (
@@ -11,14 +11,14 @@ CREATE TABLE ${keyspace}.test1 (
 }
 
 schemaChange {
-  id 'dev-data'
+  version 'dev-data'
   author 'admin'
   tags 'dev'
   cql "INSERT INTO ${keyspace}.test1 (x, y) VALUES (1, 2)"
 }
 
 schemaChange {
-  id 'stage-data'
+  version 'stage-data'
   author 'admin'
   tags 'stage'
   cql "INSERT INTO ${keyspace}.test1 (x, y) VALUES (2, 3)"

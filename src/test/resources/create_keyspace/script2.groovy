@@ -1,5 +1,5 @@
 createKeyspace {
-  id id1
+  version id1
   name keyspace
   author 'admin'
   description 'create keyspace test'
@@ -9,7 +9,7 @@ createKeyspace {
 }
 
 schemaChange {
-  id id2
+  version id2
   author 'admin'
   description 'test'
   cql """

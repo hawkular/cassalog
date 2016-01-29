@@ -39,7 +39,7 @@ class CassalogBaseTest {
     session = cluster.connect()
     findTableName = session.prepare(
         "SELECT columnfamily_name FROM system.schema_columnfamilies " +
-            "WHERE keyspace_name = ? AND columnfamily_name = ?"
+        "WHERE keyspace_name = ? AND columnfamily_name = ?"
     )
   }
 
@@ -51,14 +51,14 @@ class CassalogBaseTest {
 
   static def findChangeSets(keyspace, bucket) {
     def resultSet = session.execute(
-        "SELECT id, hash, applied_at, author, description, tags FROM ${keyspace}.$Cassalog.CHANGELOG_TABLE " +
+        "SELECT version, hash, applied_at, author, description, tags FROM ${keyspace}.$Cassalog.CHANGELOG_TABLE " +
             "WHERE bucket = $bucket"
     )
     return resultSet.all()
   }
 
   static void assertChangeSetEquals(Row actual, ChangeSet expected) {
-    assertEquals(actual.getString(0), expected.id)
+    assertEquals(actual.getString(0), expected.version)
     assertNotNull(actual.getBytes(1))
     assertNotNull(actual.getTimestamp(2))
     assertEquals(actual.getString(3), expected.author)

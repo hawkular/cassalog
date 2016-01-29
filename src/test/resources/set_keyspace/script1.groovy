@@ -1,7 +1,7 @@
 setKeyspace keyspace
 
 schemaChange {
-  id 'first-table'
+  version 'first-table'
   cql """
     CREATE TABLE test (
       x int,

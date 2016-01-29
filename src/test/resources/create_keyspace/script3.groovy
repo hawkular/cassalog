@@ -1,5 +1,5 @@
 createKeyspace {
-  id change1Id
+  version change1Id
   name keyspace
   author 'admin'
   description 'create keyspace test'
@@ -9,7 +9,7 @@ createKeyspace {
 }
 
 schemaChange {
-  id change2Id
+  version change2Id
   author 'admin'
   description 'test'
   // Note that the CREATE TABLE statement does not prefix the table name with the keyspace. This is because the

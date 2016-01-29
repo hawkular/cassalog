@@ -40,8 +40,8 @@ class IncludeTest extends CassalogBaseTest {
 
     def rows = findChangeSets(keyspace, 0)
     assertEquals(rows.size(), 2)
-    assertChangeSetEquals(rows[0], new ChangeSet(id: 'first-table'))
-    assertChangeSetEquals(rows[1], new ChangeSet(id: 'second-table'))
+    assertChangeSetEquals(rows[0], new ChangeSet(version: 'first-table'))
+    assertChangeSetEquals(rows[1], new ChangeSet(version: 'second-table'))
   }
 
   @Test
@@ -56,8 +56,8 @@ class IncludeTest extends CassalogBaseTest {
 
     def rows = findChangeSets(keyspace, 0)
     assertEquals(rows.size(), 2)
-    assertChangeSetEquals(rows[0], new ChangeSet(id: 'second-table'))
-    assertChangeSetEquals(rows[1], new ChangeSet(id: 'third-table'))
+    assertChangeSetEquals(rows[0], new ChangeSet(version: 'second-table'))
+    assertChangeSetEquals(rows[1], new ChangeSet(version: 'third-table'))
   }
 
   @Test
@@ -72,8 +72,8 @@ class IncludeTest extends CassalogBaseTest {
 
     def rows = findChangeSets(keyspace, 0)
     assertEquals(rows.size(), 2)
-    assertChangeSetEquals(rows[0], new ChangeSet(id: 'second-table'))
-    assertChangeSetEquals(rows[1], new ChangeSet(id: 'fourth-table'))
+    assertChangeSetEquals(rows[0], new ChangeSet(version: 'second-table'))
+    assertChangeSetEquals(rows[1], new ChangeSet(version: 'fourth-table'))
   }
 
   @Test
@@ -88,8 +88,8 @@ class IncludeTest extends CassalogBaseTest {
 
     def rows = findChangeSets(keyspace, 0)
     assertEquals(rows.size(), 2)
-    assertChangeSetEquals(rows[0], new ChangeSet(id: 'second-table'))
-    assertChangeSetEquals(rows[1], new ChangeSet(id: 'third-table'))
+    assertChangeSetEquals(rows[0], new ChangeSet(version: 'second-table'))
+    assertChangeSetEquals(rows[1], new ChangeSet(version: 'third-table'))
   }
 
 }

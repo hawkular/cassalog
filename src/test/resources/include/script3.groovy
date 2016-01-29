@@ -1,7 +1,7 @@
 include '/include/script2.groovy'
 
 schemaChange {
-  id 'third-table'
+  version 'third-table'
   cql """
     CREATE TABLE ${keyspace}.test3 (
       x int,

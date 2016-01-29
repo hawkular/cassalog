@@ -1,7 +1,7 @@
 setKeyspace 'does_not_exist'
 
 schemaChange {
-  id 'first-table'
+  version 'first-table'
   cql """
     CREATE TABLE test (
       x int,

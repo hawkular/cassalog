@@ -1,5 +1,5 @@
 schemaChange {
-  id 'fourth-table'
+  version 'fourth-table'
   cql """
     CREATE TABLE ${keyspace}.test4 (
       x int,

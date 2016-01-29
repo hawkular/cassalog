@@ -1,4 +1,4 @@
 schemaChange {
-  id 'no-cql'
+  version 'no-cql'
   author 'admin'
 }

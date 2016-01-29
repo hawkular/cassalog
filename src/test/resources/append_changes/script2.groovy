@@ -1,5 +1,5 @@
 schemaChange {
-  id 'first-table'
+  version 'first-table'
   author 'admin'
   description 'test'
   cql """
@@ -13,7 +13,7 @@ schemaChange {
 }
 
 schemaChange {
-  id 'second-table'
+  version 'second-table'
   author 'admin'
   description 'second table test'
   tags 'red', 'blue'

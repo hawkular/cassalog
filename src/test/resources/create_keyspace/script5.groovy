@@ -1,5 +1,5 @@
 createKeyspace {
-  id id1
+  version id1
   name keyspace
   recreate true
   active false
