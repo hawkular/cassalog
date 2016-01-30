@@ -47,11 +47,11 @@ class CreateKeyspace extends ChangeSet {
 
   ReplicationSettings replication = new ReplicationSettings()
 
-  String getCql() {
+  List getCql() {
     def cql = """
 CREATE KEYSPACE $name WITH replication = { 'class': '${replication.strategy}', 'replication_factor': ${replication.replicationFactor} }
 """
-    return cql
+    return [cql]
   }
 
   void name(String name) {

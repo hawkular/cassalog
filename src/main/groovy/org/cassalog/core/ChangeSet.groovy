@@ -68,7 +68,7 @@ class ChangeSet {
   ByteBuffer getHash() {
     if (hash == null) {
       def sha1 = MessageDigest.getInstance("SHA1")
-      def digest = sha1.digest(cql.bytes)
+      def digest = sha1.digest(cql.join().bytes)
       hash = ByteBuffer.wrap(digest)
     }
     return hash

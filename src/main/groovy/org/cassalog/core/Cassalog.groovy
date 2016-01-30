@@ -90,7 +90,7 @@ class Cassalog {
 
     changeSets.eachWithIndex{ def change, int i ->
       change.validate()
-      change.hash = computeHash(change.cql)
+//      change.hash = computeHash(change.cql)
 
       if (change instanceof CreateKeyspace && change.active == true) {
         session.execute("USE $keyspace")
@@ -212,10 +212,11 @@ CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
   def applyChangeSet(ChangeSet changeSet) {
     log.info("""Applying ChangeSet
 -- version: $changeSet.version
-$changeSet.cql
+${changeSet.cql.join('\n')}
 --"""
     )
-    session.execute(changeSet.cql)
+//    session.execute(changeSet.cql)
+    changeSet.cql.each { session.execute(it) }
   }
 
   def computeHash(String s) {

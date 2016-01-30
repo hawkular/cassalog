@@ -16,33 +16,29 @@
  */
 package org.cassalog.core
 
+import org.testng.annotations.Test
+
+import static org.testng.Assert.assertEquals
+
 /**
  * @author jsanda
  */
-class SetKeyspace extends ChangeSet {
+class MultipleCQLStatementsTest extends CassalogBaseTest {
 
-  /**
-   * The keyspace name
-   */
-  String name
+  @Test
+  void executeMultipleCQLStatements() {
+    def keyspace = 'multiple_cql_statements'
+    resetSchema(keyspace)
 
-  SetKeyspace() {
-    version = 'set-keyspace'
-  }
+    def script = getClass().getResource('/multiple_cql_statements/script1.groovy').toURI()
 
-  void name(String name) {
-    this.name = name
-  }
+    def cassalog = new Cassalog(session: session, keyspace: keyspace)
+    cassalog.execute(script, [keyspace: keyspace])
 
-  List getCql() {
-    return ["USE $name"]
-  }
+    assertTableExists(keyspace, 'test')
 
-  void validate() {
-    super.validate()
-    if (name == null) {
-      throw new ChangeSetValidationException('The name property must be set')
-    }
+    def rows = session.execute("SELECT x, y FROM test")
+    assertEquals(rows.size(), 3)
   }
 
 }
