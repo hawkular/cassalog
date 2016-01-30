@@ -29,7 +29,6 @@ class CqlChangeSet extends ChangeSet {
   /**
    * The CQL to execute. It is not stored in the database.
    */
-//  String cql
   def cql = []
 
   void cql(String cql) {
@@ -37,13 +36,11 @@ class CqlChangeSet extends ChangeSet {
   }
 
   void cql(List cql) {
-    println "CQL: $cql"
     this.cql.addAll(cql)
   }
 
   void validate() {
     super.validate()
-//    if (cql == null) {
     if (cql.empty) {
       throw new ChangeSetValidationException('The cql property must be set')
     }
