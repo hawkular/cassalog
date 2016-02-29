@@ -27,7 +27,7 @@
   <description>A Cassandra schema change management tool for applications running on the JVM</description>
 
   <properties>
-    <version.com.datastax.cassandra>2.2.0-rc3</version.com.datastax.cassandra>
+    <version.com.datastax.cassandra>3.0.0</version.com.datastax.cassandra>
     <version.com.google.guava>16.0.1</version.com.google.guava>
     <version.org.codehaus.groovy>2.4.5</version.org.codehaus.groovy>
     <version.org.testng>6.9.10</version.org.testng>

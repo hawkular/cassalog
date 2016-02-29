@@ -37,9 +37,13 @@ class CassalogBaseTest {
   static void initTest() {
     cluster = new Cluster.Builder().addContactPoint('127.0.0.1').build()
     session = cluster.connect()
+//    findTableName = session.prepare(
+//        "SELECT columnfamily_name FROM system.schema_columnfamilies " +
+//        "WHERE keyspace_name = ? AND columnfamily_name = ?"
+//    )
     findTableName = session.prepare(
-        "SELECT columnfamily_name FROM system.schema_columnfamilies " +
-        "WHERE keyspace_name = ? AND columnfamily_name = ?"
+        "SELECT table_name FROM system_schema.tables " +
+        "WHERE keyspace_name = ? AND table_name = ?"
     )
   }
 
@@ -52,7 +56,7 @@ class CassalogBaseTest {
   static def findChangeSets(keyspace, bucket) {
     def resultSet = session.execute(
         "SELECT version, hash, applied_at, author, description, tags FROM ${keyspace}.$Cassalog.CHANGELOG_TABLE " +
-            "WHERE bucket = $bucket"
+        "WHERE bucket = $bucket"
     )
     return resultSet.all()
   }

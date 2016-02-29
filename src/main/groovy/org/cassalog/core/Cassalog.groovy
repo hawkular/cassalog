@@ -20,6 +20,7 @@ import com.datastax.driver.core.BoundStatement
 import com.datastax.driver.core.ConsistencyLevel
 import com.datastax.driver.core.PreparedStatement
 import com.datastax.driver.core.Session
+import com.datastax.driver.core.SimpleStatement
 import com.datastax.driver.core.exceptions.InvalidQueryException
 import groovy.util.logging.Slf4j
 
@@ -42,6 +43,8 @@ class Cassalog {
 
   PreparedStatement insertSchemaChange
 
+  ConsistencyLevel consistencyLevel
+
   void execute(URI script) {
     execute(script, Collections.emptySet())
   }
@@ -55,6 +58,9 @@ class Cassalog {
   }
 
   void execute(URI script, Collection tags, Map vars) {
+    verifyCassandraVersion()
+    determineConsistencyLevel()
+
     log.info("Executing ${[script: script, tags: tags, vars: vars]}")
 
     def changeSets = []
@@ -171,9 +177,16 @@ class Cassalog {
   }
 
   boolean keyspaceExists() {
-    def resultSet = executeCQL(
-        "SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name = '$keyspace'"
-    )
+    def resultSet
+    if (cassandraMajorVersion == 2) {
+      resultSet = executeCQL(
+          "SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name = '$keyspace'"
+      )
+    } else {
+      resultSet = executeCQL(
+          "SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = '$keyspace'"
+      )
+    }
     return !resultSet.exhausted
   }
 
@@ -189,10 +202,18 @@ class Cassalog {
   }
 
   def createChangeLogTableIfNecessary() {
-    def resultSet = executeCQL(
-        "SELECT * FROM system.schema_columnfamilies " +
-        "WHERE keyspace_name = '$keyspace' AND columnfamily_name = '$CHANGELOG_TABLE'"
-    )
+    def resultSet
+    if (cassandraMajorVersion == 2) {
+      resultSet = executeCQL(
+          "SELECT * FROM system.schema_columnfamilies " +
+          "WHERE keyspace_name = '$keyspace' AND columnfamily_name = '$CHANGELOG_TABLE'"
+      )
+    } else {
+      resultSet = executeCQL(
+          "SELECT * FROM system_schema.tables " +
+          "WHERE keyspace_name = '$keyspace' AND table_name = '$CHANGELOG_TABLE'"
+      )
+    }
     if (resultSet.exhausted) {
       log.info("Creating change log table ${keyspace}.$CHANGELOG_TABLE")
       executeCQL("""
@@ -225,14 +246,46 @@ ${changeSet.cql.join('\n')}
   }
 
   def executeCQL(String cql) {
-    def statement = session.newSimpleStatement(cql)
-    statement.consistencyLevel = ConsistencyLevel.QUORUM
+    def statement = new SimpleStatement(cql)
+    statement.consistencyLevel = consistencyLevel
     return session.execute(statement)
   }
 
   def executeCQL(BoundStatement statement) {
-    statement.consistencyLevel = ConsistencyLevel.QUORUM
+    statement.consistencyLevel = consistencyLevel
     return session.execute(statement)
+  }
+
+  def determineConsistencyLevel() {
+    def resultSet = session.execute("SELECT peer FROM system.peers")
+    int clusterSize = resultSet.all().size()
+    if (clusterSize == 0) {
+      consistencyLevel = ConsistencyLevel.LOCAL_ONE
+    } else {
+      log.warn("CLUSTER SIZE = $clusterSize")
+      consistencyLevel = ConsistencyLevel.LOCAL_QUORUM
+    }
+  }
+
+  def verifyCassandraVersion() {
+    def majorVersion = null
+    session.cluster.metadata.allHosts.each { host ->
+      if (majorVersion == null) {
+        // TODO make this null safe
+        majorVersion = host.cassandraVersion.major
+      } else {
+        if (host.cassandraVersion != null && host.cassandraVersion.major != majorVersion) {
+          throw new CassandraVersionException("All Cassandra nodes should be running the same major version.")
+        }
+      }
+    }
+    if (majorVersion == 1) {
+      throw new CassandraVersionException("Cassandra 1.x is not supported.")
+    }
+  }
+
+  int getCassandraMajorVersion() {
+    return session.cluster.metadata.allHosts.find { host -> host.cassandraVersion != null}.cassandraVersion.major
   }
 
 }
