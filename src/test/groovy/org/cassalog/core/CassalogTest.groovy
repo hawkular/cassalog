@@ -32,14 +32,14 @@ class CassalogTest extends CassalogBaseTest {
 
     URI script = getClass().getResource('/single_change/schema.groovy').toURI()
 
-    Cassalog casslog = new Cassalog(keyspace: keyspace, session: session)
+    CassalogImpl casslog = new CassalogImpl(keyspace: keyspace, session: session)
     casslog.execute(script)
 
     assertTableExists(keyspace, 'test1')
 
     def rows = findChangeSets(keyspace, 0)
 
-    assertEquals(rows.size(), 1, "Expected to find one row in $Cassalog.CHANGELOG_TABLE")
+    assertEquals(rows.size(), 1, "Expected to find one row in $CassalogImpl.CHANGELOG_TABLE")
     assertEquals(rows[0].getString(0), 'first-table')
     assertNotNull(rows[0].getBytes(1))
     assertEquals(rows[0].getString(3), 'admin')
@@ -53,7 +53,7 @@ class CassalogTest extends CassalogBaseTest {
     casslog.execute(script)
 
     rows = findChangeSets(keyspace, 0)
-    assertEquals(rows.size(), 1, "Expected to find one row in $Cassalog.CHANGELOG_TABLE")
+    assertEquals(rows.size(), 1, "Expected to find one row in $CassalogImpl.CHANGELOG_TABLE")
     assertEquals(rows[0].getTimestamp(2), appliedAt)
   }
 
@@ -67,7 +67,7 @@ class CassalogTest extends CassalogBaseTest {
 
     def script = getClass().getResource('/create_keyspace/script1.groovy').toURI()
 
-    Cassalog cassalog = new Cassalog(session: session)
+    CassalogImpl cassalog = new CassalogImpl(session: session)
     cassalog.execute(script, [keyspace: keyspace, id1: change1Id])
 
 
@@ -93,7 +93,7 @@ class CassalogTest extends CassalogBaseTest {
 
     def script = getClass().getResource('/create_keyspace/script3.groovy').toURI()
 
-    def cassalog = new Cassalog(session: session)
+    def cassalog = new CassalogImpl(session: session)
     cassalog.execute(script, [keyspace: keyspace, change1Id: change1Id, change2Id: change2Id])
 
     assertTableExists(keyspace, 'test1')
@@ -114,7 +114,7 @@ class CassalogTest extends CassalogBaseTest {
 
     def script = getClass().getResource('/create_keyspace/script4.groovy').toURI()
 
-    def cassalog = new Cassalog(session: session)
+    def cassalog = new CassalogImpl(session: session)
     cassalog.execute(script, [keyspace: keyspace, change1Id: change1Id, change2Id: change2Id])
   }
 
@@ -128,7 +128,7 @@ class CassalogTest extends CassalogBaseTest {
 //    def cluster2 = new Cluster.Builder().addContactPoint('127.0.0.1').build()
 //    def session2 = cluster2.connect()
 
-    def cassalog = new Cassalog(session: session)
+    def cassalog = new CassalogImpl(session: session)
     cassalog.execute(script, [keyspace: keyspace, id1: id1])
 
     def rows = findChangeSets(keyspace, 0)
@@ -156,7 +156,7 @@ class CassalogTest extends CassalogBaseTest {
     def script1 = getClass().getResource("/append_changes/script1.groovy").toURI()
     def script2 = getClass().getResource("/append_changes/script2.groovy").toURI()
 
-    Cassalog cassalog = new Cassalog(keyspace: keyspace, session: session)
+    CassalogImpl cassalog = new CassalogImpl(keyspace: keyspace, session: session)
 
     cassalog.execute(script1, [keyspace: keyspace])
     cassalog.execute(script2, [keyspace: keyspace])
@@ -164,12 +164,12 @@ class CassalogTest extends CassalogBaseTest {
     assertTableExists(keyspace, 'test2')
 
     def resultSet = session.execute(
-        "SELECT version, hash, applied_at, author, description, tags FROM ${keyspace}.$Cassalog.CHANGELOG_TABLE " +
+        "SELECT version, hash, applied_at, author, description, tags FROM ${keyspace}.$CassalogImpl.CHANGELOG_TABLE " +
         "WHERE bucket = 0"
     )
     def rows = resultSet.all()
 
-    assertEquals(rows.size(), 2, "Expected to find two rows in $Cassalog.CHANGELOG_TABLE")
+    assertEquals(rows.size(), 2, "Expected to find two rows in $CassalogImpl.CHANGELOG_TABLE")
     assertEquals(rows[0].getString(0), 'first-table')
     assertEquals(rows[1].getString(0), 'second-table')
     assertNotNull(rows[1].getBytes(1))
@@ -187,7 +187,7 @@ class CassalogTest extends CassalogBaseTest {
     def script1 = getClass().getResource('/multiple_buckets/script1.groovy').toURI()
     def script2 = getClass().getResource('/multiple_buckets/script2.groovy').toURI()
 
-    def cassalog = new Cassalog(keyspace: keyspace, session: session, bucketSize: 2)
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session, bucketSize: 2)
     cassalog.execute(script1, [keyspace: keyspace])
     cassalog.execute(script2)
 
@@ -207,7 +207,7 @@ class CassalogTest extends CassalogBaseTest {
     def script = getClass().getResource('/fail_modified_changeset/script1.groovy').toURI()
     def modifiedScript = getClass().getResource('/fail_modified_changeset/script2.groovy').toURI()
 
-    Cassalog cassalog = new Cassalog(keyspace: keyspace, session: session)
+    CassalogImpl cassalog = new CassalogImpl(keyspace: keyspace, session: session)
     cassalog.execute(script, [keyspace: keyspace])
     cassalog.execute(modifiedScript, [keyspace: keyspace])
 
@@ -235,7 +235,7 @@ class CassalogTest extends CassalogBaseTest {
     def script = getClass().getResource('/change_id/script1.groovy').toURI()
     def modifiedScript = getClass().getResource('/change_id/script2.groovy').toURI()
 
-    def casslog = new Cassalog(keyspace: keyspace, session: session)
+    def casslog = new CassalogImpl(keyspace: keyspace, session: session)
     casslog.execute(script, [keyspace: keyspace])
     casslog.execute(modifiedScript, [keyspace: keyspace])
   }
@@ -250,7 +250,7 @@ class CassalogTest extends CassalogBaseTest {
     String keyspace = 'basic_validation'
 
     def script = getClass().getResource('/basic_validation/script1.groovy').toURI()
-    def cassalog = new Cassalog(keyspace: keyspace, session: session)
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
     cassalog.execute(script, [keyspace: keyspace])
   }
 
@@ -259,7 +259,7 @@ class CassalogTest extends CassalogBaseTest {
     String keyspace = 'basic_validation'
 
     def script = getClass().getResource('/basic_validation/script2.groovy').toURI()
-    def cassalog = new Cassalog(keyspace: keyspace, session: session)
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
     cassalog.execute(script, [keyspace: keyspace])
   }
 
@@ -270,7 +270,7 @@ class CassalogTest extends CassalogBaseTest {
 
     def script = getClass().getResource('/tags_test/script1.groovy').toURI()
 
-    def cassalog = new Cassalog(keyspace: keyspace, session: session)
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
     cassalog.execute(script, ['dev'], [keyspace: keyspace])
 
     def changeLogRows = findChangeSets(keyspace, 0)

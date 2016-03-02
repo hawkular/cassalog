@@ -31,12 +31,12 @@ class CqlChangeSet extends ChangeSet {
    */
   def cql = []
 
-  void cql(String cql) {
-    this.cql << cql;
+  void cql(def cql) {
+    this.cql << cql as String;
   }
 
   void cql(List cql) {
-    this.cql.addAll(cql)
+    this.cql.addAll(cql*.toString())
   }
 
   void validate() {

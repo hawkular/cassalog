@@ -32,7 +32,7 @@ class MultipleCQLStatementsTest extends CassalogBaseTest {
 
     def script = getClass().getResource('/multiple_cql_statements/script1.groovy').toURI()
 
-    def cassalog = new Cassalog(session: session, keyspace: keyspace)
+    def cassalog = new CassalogImpl(session: session, keyspace: keyspace)
     cassalog.execute(script, [keyspace: keyspace])
 
     assertTableExists(keyspace, 'test')

@@ -32,7 +32,7 @@ class IncludeTest extends CassalogBaseTest {
 
     def script = getClass().getResource('/include/script1.groovy').toURI()
 
-    def cassalog = new Cassalog(keyspace: keyspace, session: session)
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
     cassalog.execute(script, [keyspace: keyspace])
 
     assertTableExists(keyspace, 'test1')
@@ -51,7 +51,7 @@ class IncludeTest extends CassalogBaseTest {
 
     def script = getClass().getResource('/include/script3.groovy').toURI()
 
-    def cassalog = new Cassalog(keyspace: keyspace, session: session)
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
     cassalog.execute(script, [keyspace: keyspace])
 
     def rows = findChangeSets(keyspace, 0)
@@ -67,7 +67,7 @@ class IncludeTest extends CassalogBaseTest {
 
     def script = getClass().getResource('/include/multiple_includes.groovy').toURI()
 
-    def cassalog = new Cassalog(keyspace: keyspace, session: session)
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
     cassalog.execute(script, [keyspace: keyspace])
 
     def rows = findChangeSets(keyspace, 0)
@@ -83,7 +83,7 @@ class IncludeTest extends CassalogBaseTest {
 
     def script = getClass().getResource('/include/nested.groovy').toURI()
 
-    def cassalog = new Cassalog(keyspace: keyspace, session: session)
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
     cassalog.execute(script, [keyspace: keyspace])
 
     def rows = findChangeSets(keyspace, 0)

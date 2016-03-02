@@ -74,16 +74,16 @@ class ChangeSet {
     return hash
   }
 
-  void version(String version) {
-    this.version = version
+  void version(def version) {
+    this.version = version as String
   }
 
-  void author(String author) {
-    this.author = author
+  void author(def author) {
+    this.author = author as String
   }
 
-  void description(String description) {
-    this.description = description;
+  void description(def description) {
+    this.description = description as String;
   }
 
   void tags(String... tags) {

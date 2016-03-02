@@ -16,33 +16,29 @@
  */
 package org.cassalog.core
 
+import com.datastax.driver.core.Session
+
 /**
  * @author jsanda
  */
-class SetKeyspace extends ChangeSet {
+class CassalogBuilder {
 
-  /**
-   * The keyspace name
-   */
-  String name
+  private String keyspace
 
-  SetKeyspace() {
-    version = 'set-keyspace'
+  private Session session
+
+  CassalogBuilder withKeyspace(String keyspace) {
+    this.keyspace = keyspace
+    return this
   }
 
-  void name(def name) {
-    this.name = name as String
+  CassalogBuilder withSession(Session session) {
+    this.session = session
+    return this;
   }
 
-  List getCql() {
-    return ["USE $name"]
-  }
-
-  void validate() {
-    super.validate()
-    if (name == null) {
-      throw new ChangeSetValidationException('The name property must be set')
-    }
+  Cassalog build() {
+    return new CassalogImpl(keyspace: keyspace, session: session)
   }
 
 }

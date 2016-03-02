@@ -30,7 +30,7 @@ class SetKeyspaceTest extends CassalogBaseTest {
 
     def script = getClass().getResource('/set_keyspace/script1.groovy').toURI()
 
-    def cassalog = new Cassalog(keyspace: keyspace, session: session)
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
     cassalog.execute(script)
 
     assertTableExists(keyspace, 'test')
@@ -40,7 +40,7 @@ class SetKeyspaceTest extends CassalogBaseTest {
   setKeyspaceInvalid() {
     def script = getClass().getResource('/set_keyspace/script2.groovy').toURI()
 
-    def cassalog = new Cassalog(keyspace: keyspace, session: session)
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
     cassalog.execute(script)
   }
 

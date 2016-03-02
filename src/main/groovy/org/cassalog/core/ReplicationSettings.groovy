@@ -25,8 +25,8 @@ class ReplicationSettings {
 
   int replicationFactor = 1
 
-  void strategy(String strategy) {
-    this.strategy = strategy
+  void strategy(def strategy) {
+    this.strategy = strategy as String
   }
 
   void replication_factor(int replicationFactor) {

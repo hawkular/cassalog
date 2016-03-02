@@ -54,8 +54,8 @@ CREATE KEYSPACE $name WITH replication = { 'class': '${replication.strategy}', '
     return [cql]
   }
 
-  void name(String name) {
-    this.name = name
+  void name(def name) {
+    this.name = name as String
   }
 
   void active(boolean use) {
@@ -66,7 +66,7 @@ CREATE KEYSPACE $name WITH replication = { 'class': '${replication.strategy}', '
     this.recreate = recreate
   }
 
-  void durable_writes(durableWrites) {
+  void durable_writes(boolean durableWrites) {
     this.durableWrites = durableWrites
   }
 
