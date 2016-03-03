@@ -63,6 +63,7 @@ class CassalogImpl implements Cassalog {
   @Override
   void execute(URI script, Collection tags, Map vars) {
     verifyCassandraVersion()
+    verifySchemaAgreement()
     determineConsistencyLevel()
 
     log.info("Executing ${[script: script, tags: tags, vars: vars]}")
@@ -95,14 +96,14 @@ class CassalogImpl implements Cassalog {
 
     createChangeLogTableIfNecessary()
 
-    changeLog = new ChangeLog(session: session, keyspace: keyspace, bucketSize: bucketSize)
+    changeLog = new ChangeLog(session: session, keyspace: keyspace, bucketSize: bucketSize,
+        consistencyLevel: consistencyLevel)
     changeLog.load()
 
     initPreparedStatements()
 
     changeSets.eachWithIndex{ def change, int i ->
       change.validate()
-//      change.hash = computeHash(change.cql)
 
       if (change instanceof CreateKeyspace && change.active == true) {
         executeCQL("USE $keyspace")
@@ -293,6 +294,12 @@ ${changeSet.cql.join('\n')}
 
   int getCassandraMajorVersion() {
     return session.cluster.metadata.allHosts.find { host -> host.cassandraVersion != null}.cassandraVersion.major
+  }
+
+  def verifySchemaAgreement() {
+    if (!session.cluster.metadata.checkSchemaAgreement()) {
+      throw new SchemaAgreementException()
+    }
   }
 
 }

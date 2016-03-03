@@ -16,9 +16,12 @@
  */
 package org.cassalog.core
 
+import com.datastax.driver.core.ConsistencyLevel
 import com.datastax.driver.core.PreparedStatement
 import com.datastax.driver.core.Row
 import com.datastax.driver.core.Session
+import com.datastax.driver.core.SimpleStatement
+
 /**
  * This class provides a view of the change log stored in the database. Change log entries can be read after calling
  * the {@link ChangeLog#load() load} method. Creating and Updating the change log table is currently done by
@@ -50,6 +53,8 @@ class ChangeLog {
    */
   def buckets = []
 
+  ConsistencyLevel consistencyLevel
+
   private PreparedStatement loadBucket
 
   void load() {
@@ -59,15 +64,21 @@ class ChangeLog {
       WHERE bucket = ?
       """
     )
-    def bucketResultSet = session.execute("SELECT DISTINCT bucket FROM ${keyspace}.$CassalogImpl.CHANGELOG_TABLE")
+
+    def findBuckets = new SimpleStatement("SELECT DISTINCT bucket FROM ${keyspace}.$CassalogImpl.CHANGELOG_TABLE")
+    findBuckets.consistencyLevel = consistencyLevel
+    def bucketResultSet = session.execute(findBuckets)
+
     if (!bucketResultSet.exhausted) {
       int bucket = bucketResultSet.all().max { it.getInt(0) }.getInt(0)
-      def revisionsResultSet = session.execute("""
-        SELECT revision
-        FROM ${keyspace}.$CassalogImpl.CHANGELOG_TABLE
-        WHERE bucket = $bucket ORDER BY revision DESC
-        """
+      def findRevisions = new SimpleStatement(
+          "SELECT revision FROM ${keyspace}.$CassalogImpl.CHANGELOG_TABLE " +
+          "WHERE bucket = $bucket " +
+          "ORDER BY revision DESC"
       )
+      findRevisions.consistencyLevel = consistencyLevel
+
+      def revisionsResultSet = session.execute(findRevisions)
       numRevisions = revisionsResultSet.all().first().getInt(0) + 1
     }
   }
