@@ -22,9 +22,27 @@
 
   <groupId>org.cassalog</groupId>
   <artifactId>cassalog</artifactId>
-  <version>0.2.0-SNAPSHOT</version>
+  <version>0.1.1-SNAPSHOT</version>
   <name>Cassalog</name>
   <description>A Cassandra schema change management tool for applications running on the JVM</description>
+  <url>https://github.com/jsanda/cassalog</url>
+  <inceptionYear>2016</inceptionYear>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>John Sanda</name>
+      <url>http://johnsanda.blogspot.com/</url>
+      <timezone>-5</timezone>
+    </developer>
+  </developers>
 
   <properties>
     <version.com.datastax.cassandra>3.0.0</version.com.datastax.cassandra>
@@ -32,7 +50,9 @@
     <version.org.codehaus.groovy>2.4.5</version.org.codehaus.groovy>
     <version.org.testng>6.9.10</version.org.testng>
     <version.ch.qos.logback>1.1.3</version.ch.qos.logback>
+    <version.maven-gmavenplus-plugin>1.5</version.maven-gmavenplus-plugin>
     <version.maven-release-plugin>2.5.3</version.maven-release-plugin>
+    <version.maven-source-plugin>2.4</version.maven-source-plugin>
 
     <!-- Repository Deployment URLs -->
     <jboss.nexus.base.url>https://repository.jboss.org/nexus</jboss.nexus.base.url>
@@ -93,7 +113,7 @@
       <plugin>
         <groupId>org.codehaus.gmavenplus</groupId>
         <artifactId>gmavenplus-plugin</artifactId>
-        <version>1.5</version>
+        <version>${version.maven-gmavenplus-plugin}</version>
         <executions>
           <execution>
             <goals>
@@ -101,6 +121,24 @@
               <goal>addTestSources</goal>
               <goal>compile</goal>
               <goal>testCompile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>${version.maven-source-plugin}</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar-no-fork</goal>
+              <goal>test-jar-no-fork</goal>
             </goals>
           </execution>
         </executions>
