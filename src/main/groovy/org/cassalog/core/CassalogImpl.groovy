@@ -141,6 +141,7 @@ class CassalogImpl implements Cassalog {
     scriptVars.schemaChange = { schemaChanges << createCqlChangeSet(it, binding) }
     scriptVars.setKeyspace = { schemaChanges << new SetKeyspace(name: keyspace) }
     scriptVars.include = { schemaChanges.addAll(include(it, vars)) }
+    scriptVars.putAll(createScriptHelperFunctions())
 
 
     return new Binding(scriptVars)
@@ -173,6 +174,7 @@ class CassalogImpl implements Cassalog {
     scriptVars.schemaChange = { dbchanges << createCqlChangeSet(it, binding) }
     scriptVars.setKeyspace = { dbchanges << new SetKeyspace(name: keyspace) }
     scriptVars.include = { dbchanges.addAll(include(it, vars)) }
+    scriptVars.putAll(createScriptHelperFunctions())
 
     def shell = new GroovyShell(binding)
     def scriptURI = getClass().getResource(script).toURI()
@@ -181,7 +183,41 @@ class CassalogImpl implements Cassalog {
     return dbchanges
   }
 
+  Map createScriptHelperFunctions() {
+    return [
+        keyspaceExists: { return keyspaceExists(it) },
+        isSchemaVersioned: { return isSchemaVersioned(it) },
+        getTables: {
+          def resultSet
+          def tables = []
+          if (cassandraMajorVersion == 2) {
+            resultSet = executeCQL("SELECT columnfamily_name FROM system.schema_columnfamilies WHERE " +
+                "keyspace_name = '$it'")
+          } else {
+            resultSet = executeCQL("SELECT table_name FROM system_schema.tables WHERE keyspace_name = '$it'")
+          }
+          resultSet.all().each { tables << it.getString(0) }
+          return tables
+        },
+        getUDTs: {
+          def resultSet
+          def types = []
+          if (cassandraMajorVersion == 2) {
+            resultSet = executeCQL("SELECT type_name FROM system.schema_usertypes WHERE keyspace_name = '$it'")
+          } else {
+            resultSet = executeCQL("SELECT type_name FROM system_schema.types WHERE keyspace_name = '$it'")
+          }
+          resultSet.all().each { tables << it.getString(0) }
+          return types
+        }
+    ]
+  }
+
   boolean keyspaceExists() {
+    return keyspaceExists(keyspace)
+  }
+
+  boolean keyspaceExists(String keyspace) {
     def resultSet
     if (cassandraMajorVersion == 2) {
       resultSet = executeCQL(
@@ -207,19 +243,7 @@ class CassalogImpl implements Cassalog {
   }
 
   def createChangeLogTableIfNecessary() {
-    def resultSet
-    if (cassandraMajorVersion == 2) {
-      resultSet = executeCQL(
-          "SELECT * FROM system.schema_columnfamilies " +
-          "WHERE keyspace_name = '$keyspace' AND columnfamily_name = '$CHANGELOG_TABLE'"
-      )
-    } else {
-      resultSet = executeCQL(
-          "SELECT * FROM system_schema.tables " +
-          "WHERE keyspace_name = '$keyspace' AND table_name = '$CHANGELOG_TABLE'"
-      )
-    }
-    if (resultSet.exhausted) {
+    if (!isSchemaVersioned()) {
       log.info("Creating change log table ${keyspace}.$CHANGELOG_TABLE")
       executeCQL("""
 CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
@@ -235,6 +259,27 @@ CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
 )
 """)
     }
+  }
+
+  boolean isSchemaVersioned() {
+    return isSchemaVersioned(keyspace)
+  }
+
+  boolean isSchemaVersioned(String keyspace) {
+    def resultSet
+    if (cassandraMajorVersion == 2) {
+      resultSet = executeCQL(
+          "SELECT * FROM system.schema_columnfamilies " +
+          "WHERE keyspace_name = '$keyspace' AND columnfamily_name = '$CHANGELOG_TABLE'"
+      )
+    } else {
+      resultSet = executeCQL(
+          "SELECT * FROM system_schema.tables " +
+          "WHERE keyspace_name = '$keyspace' AND table_name = '$CHANGELOG_TABLE'"
+      )
+    }
+
+    return !resultSet.exhausted
   }
 
   def applyChangeSet(ChangeSet changeSet) {
