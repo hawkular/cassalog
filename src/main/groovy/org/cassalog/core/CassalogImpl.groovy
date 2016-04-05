@@ -312,7 +312,6 @@ ${changeSet.cql.join('\n')}
     if (clusterSize == 0) {
       consistencyLevel = ConsistencyLevel.LOCAL_ONE
     } else {
-      log.warn("CLUSTER SIZE = $clusterSize")
       consistencyLevel = ConsistencyLevel.LOCAL_QUORUM
     }
   }
