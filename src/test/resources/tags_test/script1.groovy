@@ -1,6 +1,7 @@
 schemaChange {
   version 'table-1'
   author 'admin'
+  tags 'dev', 'stage'
   cql """
 CREATE TABLE ${keyspace}.test1 (
     x int,

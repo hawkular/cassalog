@@ -102,7 +102,11 @@ class CassalogImpl implements Cassalog {
 
     initPreparedStatements()
 
-    changeSets.eachWithIndex{ def change, int i ->
+    def tagsFilter = { changeSetTags -> changeSetTags.any { tags.contains(it) } }
+
+//    changeSets.findAll {change -> change.tags.any {tags.contains(it)}}.eachWithIndex{ def change, int i ->
+    changeSets.findAll {change -> tags.empty || tagsFilter(change.tags)}.eachWithIndex { def change, int i ->
+      println "VALIDATING"
       change.validate()
 
       if (change instanceof CreateKeyspace && change.active == true) {
@@ -120,15 +124,23 @@ class CassalogImpl implements Cassalog {
               "[${toHex(changeLog[i].hash)}] in the change log")
         }
       } else {
-        if (change.tags.empty || change.tags.containsAll(tags)) {
-          try {
-            applyChangeSet(change)
-            executeCQL(insertSchemaChange.bind((int) (i / bucketSize), i, change.version, new Date(), change.hash,
-                change.author, change.description, change.tags))
-          } catch (InvalidQueryException e) {
-            throw new ChangeSetException(e)
-          }
+        try {
+          applyChangeSet(change)
+          executeCQL(insertSchemaChange.bind((int) (i / bucketSize), i, change.version, new Date(), change.hash,
+              change.author, change.description, change.tags))
+        } catch (InvalidQueryException e) {
+          throw new ChangeSetException(e)
         }
+
+//        if (change.tags.empty || change.tags.containsAll(tags)) {
+//          try {
+//            applyChangeSet(change)
+//            executeCQL(insertSchemaChange.bind((int) (i / bucketSize), i, change.version, new Date(), change.hash,
+//                change.author, change.description, change.tags))
+//          } catch (InvalidQueryException e) {
+//            throw new ChangeSetException(e)
+//          }
+//        }
       }
     }
   }

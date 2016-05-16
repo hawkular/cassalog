@@ -277,7 +277,7 @@ class CassalogTest extends CassalogBaseTest {
 
     def verifyChangeLog = { rows ->
       assertEquals(rows.size(), 2)
-      assertChangeSetEquals(rows[0], new ChangeSet(version: 'table-1', author: 'admin'))
+      assertChangeSetEquals(rows[0], new ChangeSet(version: 'table-1', author: 'admin', tags: ['dev', 'stage']))
       assertChangeSetEquals(rows[1], new ChangeSet(version: 'dev-data', author: 'admin', tags: ['dev']))
     }
     verifyChangeLog(changeLogRows)
