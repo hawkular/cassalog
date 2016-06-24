@@ -106,7 +106,6 @@ class CassalogImpl implements Cassalog {
 
 //    changeSets.findAll {change -> change.tags.any {tags.contains(it)}}.eachWithIndex{ def change, int i ->
     changeSets.findAll {change -> tags.empty || tagsFilter(change.tags)}.eachWithIndex { def change, int i ->
-      println "VALIDATING"
       change.validate()
 
       if (change instanceof CreateKeyspace && change.active == true) {
