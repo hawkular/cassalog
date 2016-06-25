@@ -283,7 +283,7 @@ CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
   }
 
   def applyChangeSet(ChangeSet changeSet) {
-    println("""Applying ChangeSet
+    log.info("""Applying ChangeSet
 -- version: $changeSet.version
 ${changeSet.cql.join('\n')}
 --"""
