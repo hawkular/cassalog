@@ -102,10 +102,9 @@ class CassalogImpl implements Cassalog {
 
     initPreparedStatements()
 
-    def tagsFilter = { changeSetTags -> changeSetTags.any { tags.contains(it) } }
+    def tagsFilter = { changeSetTags -> tags.empty || changeSetTags.any { tags.contains(it) } }
 
-//    changeSets.findAll {change -> change.tags.any {tags.contains(it)}}.eachWithIndex{ def change, int i ->
-    changeSets.findAll {change -> tags.empty || tagsFilter(change.tags)}.eachWithIndex { def change, int i ->
+    changeSets.findAll {change -> change.tags.empty || tagsFilter(change.tags)}.eachWithIndex { def change, int i ->
       change.validate()
 
       if (change instanceof CreateKeyspace && change.active == true) {
@@ -130,16 +129,6 @@ class CassalogImpl implements Cassalog {
         } catch (InvalidQueryException e) {
           throw new ChangeSetException(e)
         }
-
-//        if (change.tags.empty || change.tags.containsAll(tags)) {
-//          try {
-//            applyChangeSet(change)
-//            executeCQL(insertSchemaChange.bind((int) (i / bucketSize), i, change.version, new Date(), change.hash,
-//                change.author, change.description, change.tags))
-//          } catch (InvalidQueryException e) {
-//            throw new ChangeSetException(e)
-//          }
-//        }
       }
     }
   }
@@ -218,7 +207,7 @@ class CassalogImpl implements Cassalog {
           } else {
             resultSet = executeCQL("SELECT type_name FROM system_schema.types WHERE keyspace_name = '$it'")
           }
-          resultSet.all().each { tables << it.getString(0) }
+          resultSet.all().each { types << it.getString(0) }
           return types
         }
     ]
@@ -294,7 +283,7 @@ CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
   }
 
   def applyChangeSet(ChangeSet changeSet) {
-    log.info("""Applying ChangeSet
+    println("""Applying ChangeSet
 -- version: $changeSet.version
 ${changeSet.cql.join('\n')}
 --"""
