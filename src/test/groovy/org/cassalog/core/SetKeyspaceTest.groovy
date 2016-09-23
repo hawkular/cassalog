@@ -36,12 +36,28 @@ class SetKeyspaceTest extends CassalogBaseTest {
     assertTableExists(keyspace, 'test')
   }
 
-  @Test(expectedExceptions = [ChangeSetException])
-  setKeyspaceInvalid() {
-    def script = getClass().getResource('/set_keyspace/script2.groovy').toURI()
+  @Test
+  void alwaysRun() {
+    def keyspace = 'alwaysrun'
+    resetSchema(keyspace)
+
+    def script = getClass().getResource('/set_keyspace/script3.groovy').toURI()
 
     def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
+    cassalog.createChangeLogTableIfNecessary()
+    cassalog.initPreparedStatements()
+    def setKeyspace = new SetKeyspace()
+    setKeyspace.name = keyspace
+    // Directly execute the change set to simulate a situation a script has start execution and then later
+    // executed again. The latter execution should re-apply the setKeyspace command since it defaults to
+    // always run.
+    cassalog.applyChangeSet(setKeyspace, 0, true)
+    // Switching to the the system keyspace will make the script fail if the setKeyspace function does not get
+    // executed.
+    session.execute("USE system")
     cassalog.execute(script)
+
+    assertTableExists(keyspace, 'always_run')
   }
 
 }

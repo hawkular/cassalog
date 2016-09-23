@@ -28,6 +28,7 @@ class SetKeyspace extends ChangeSet {
 
   SetKeyspace() {
     version = 'set-keyspace'
+    alwaysRun = true
   }
 
   void name(def name) {

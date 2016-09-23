@@ -37,14 +37,14 @@ class CassalogBaseTest {
   static void initTest() {
     cluster = new Cluster.Builder().addContactPoint('127.0.0.1').build()
     session = cluster.connect()
-    findTableName = session.prepare(
-        "SELECT columnfamily_name FROM system.schema_columnfamilies " +
-        "WHERE keyspace_name = ? AND columnfamily_name = ?"
-    )
 //    findTableName = session.prepare(
-//        "SELECT table_name FROM system_schema.tables " +
-//        "WHERE keyspace_name = ? AND table_name = ?"
+//        "SELECT columnfamily_name FROM system.schema_columnfamilies " +
+//        "WHERE keyspace_name = ? AND columnfamily_name = ?"
 //    )
+    findTableName = session.prepare(
+        "SELECT table_name FROM system_schema.tables " +
+        "WHERE keyspace_name = ? AND table_name = ?"
+    )
   }
 
   static void resetSchema(String keyspace) {

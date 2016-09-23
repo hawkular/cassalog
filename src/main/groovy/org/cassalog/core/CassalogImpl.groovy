@@ -81,12 +81,12 @@ class CassalogImpl implements Cassalog {
         executeCQL("DROP KEYSPACE IF EXISTS $keyspace")
       }
       if (!keyspaceExists()) {
-        applyChangeSet(changeSets[0])
+        applyChangeSet(changeSets[0], 0, false)
         createChangeLogTableIfNecessary()
         initPreparedStatements()
-
         executeCQL(insertSchemaChange.bind(0, 0, changeSets[0].version, new Date(), changeSets[0].hash,
             changeSets[0].author, changeSets[0].description, changeSets[0].tags))
+//        applyChangeSet(changeSets[0], 0, true)
       }
     }
 
@@ -111,25 +111,32 @@ class CassalogImpl implements Cassalog {
         executeCQL("USE $keyspace")
       }
 
-      if (i < changeLog.size) {
-        if (changeLog[i].version != change.version) {
-          throw new ChangeSetAlteredException("The version [$change.version] for $change does not match the version " +
-              "[${changeLog[i].version}] in the change log")
+      if (change.alwaysRun) {
+        if (i < changeLog.size) {
+          validateChange(change, changeLog[i])
         }
-
-        if (changeLog[i].hash != change.hash) {
-          throw new ChangeSetAlteredException("The hash [${toHex(change.hash)}] for $change does not match the hash " +
-              "[${toHex(changeLog[i].hash)}] in the change log")
-        }
+        applyChangeSet(change, i, false)
+      } else if (i < changeLog.size) {
+        validateChange(change, changeLog[i])
       } else {
         try {
-          applyChangeSet(change)
-          executeCQL(insertSchemaChange.bind((int) (i / bucketSize), i, change.version, new Date(), change.hash,
-              change.author, change.description, change.tags))
+          applyChangeSet(change, i, true)
         } catch (InvalidQueryException e) {
           throw new ChangeSetException(e)
         }
       }
+    }
+  }
+
+  private void validateChange(change, appliedChange) {
+    if (appliedChange.version != change.version) {
+      throw new ChangeSetAlteredException("The version [$change.version] for $change does not match the version " +
+          "[${appliedChange.version}] in the change log")
+    }
+
+    if (appliedChange.hash != change.hash) {
+      throw new ChangeSetAlteredException("The hash [${toHex(change.hash)}] for $change does not match the hash " +
+          "[${toHex(appliedChange.hash)}] in the change log")
     }
   }
 
@@ -282,13 +289,17 @@ CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
     return !resultSet.exhausted
   }
 
-  def applyChangeSet(ChangeSet changeSet) {
+  def applyChangeSet(ChangeSet changeSet, int index, boolean updateChangeLog) {
     log.info("""Applying ChangeSet
 -- version: $changeSet.version
 ${changeSet.cql.join('\n')}
 --"""
     )
     changeSet.cql.each { executeCQL(it) }
+    if (updateChangeLog) {
+      executeCQL(insertSchemaChange.bind((int) (index / bucketSize), index, changeSet.version, new Date(),
+          changeSet.hash, changeSet.author, changeSet.description, changeSet.tags))
+    }
   }
 
   def toHex(ByteBuffer buffer) {
