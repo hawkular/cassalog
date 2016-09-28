@@ -114,8 +114,11 @@ class CassalogImpl implements Cassalog {
       if (change.alwaysRun) {
         if (i < changeLog.size) {
           validateChange(change, changeLog[i])
+          applyChangeSet(change, i, false)
+        } else {
+          applyChangeSet(change, i, true)
         }
-        applyChangeSet(change, i, false)
+
       } else if (i < changeLog.size) {
         validateChange(change, changeLog[i])
       } else {
@@ -313,8 +316,13 @@ ${changeSet.cql.join('\n')}
   }
 
   def executeCQL(BoundStatement statement) {
-    statement.consistencyLevel = consistencyLevel
-    return session.execute(statement)
+    try {
+      statement.consistencyLevel = consistencyLevel
+      return session.execute(statement)
+    } catch (Exception e) {
+      log.error("CQL error", e)
+      return null
+    }
   }
 
   def determineConsistencyLevel() {
