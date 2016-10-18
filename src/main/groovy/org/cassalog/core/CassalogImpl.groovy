@@ -43,6 +43,8 @@ class CassalogImpl implements Cassalog {
 
   PreparedStatement insertSchemaChange
 
+  PreparedStatement updateAppliedAt
+
   ConsistencyLevel consistencyLevel
 
   @Override
@@ -84,9 +86,9 @@ class CassalogImpl implements Cassalog {
         applyChangeSet(changeSets[0], 0, false)
         createChangeLogTableIfNecessary()
         initPreparedStatements()
-        executeCQL(insertSchemaChange.bind(0, 0, changeSets[0].version, new Date(), changeSets[0].hash,
-            changeSets[0].author, changeSets[0].description, changeSets[0].tags))
-//        applyChangeSet(changeSets[0], 0, true)
+        executeCQL(insertSchemaChange.bind(0, 0, changeSets[0].version, changeSets[0].hash, changeSets[0].author,
+            changeSets[0].description, changeSets[0].tags))
+        executeCQL(updateAppliedAt.bind(new Date(), 0, 0))
       }
     }
 
@@ -121,6 +123,13 @@ class CassalogImpl implements Cassalog {
 
       } else if (i < changeLog.size) {
         validateChange(change, changeLog[i])
+        if (changeLog[i].appliedAt == null) {
+          if (change.verifyFunction != null && change.verifyFunction()) {
+            updateAppliedAt(i, changeLog[i].timestamp)
+          } else {
+            applyChangeSet(change, i, true)
+          }
+        }
       } else {
         try {
           applyChangeSet(change, i, true)
@@ -168,7 +177,7 @@ class CassalogImpl implements Cassalog {
 
   def createCqlChangeSet(Closure closure, Binding binding) {
     closure.delegate = new CqlChangeSet()
-    def code = closure.rehydrate(closure.delegate, binding, this)
+    def code = closure
     code.resolveStrategy = Closure.DELEGATE_FIRST
     code()
     return code.delegate
@@ -194,6 +203,7 @@ class CassalogImpl implements Cassalog {
   }
 
   Map createScriptHelperFunctions() {
+    def verificationFunctions = new VerificationFunctions(session: session)
     return [
         keyspaceExists: { return keyspaceExists(it) },
         isSchemaVersioned: { return isSchemaVersioned(it) },
@@ -219,7 +229,13 @@ class CassalogImpl implements Cassalog {
           }
           resultSet.all().each { types << it.getString(0) }
           return types
-        }
+        },
+        tableExists: verificationFunctions.&tableExists,
+        tableDoesNotExist: verificationFunctions.&tableDoesNotExist,
+        columnExists: verificationFunctions.&columnExists,
+        columnDoesNotExist: verificationFunctions.&columnDoesNotExist,
+        typeExists: verificationFunctions.&typeExists,
+        typeDoesNotExist: verificationFunctions.&typeDoesNotExist
     ]
   }
 
@@ -246,10 +262,13 @@ class CassalogImpl implements Cassalog {
       return
     }
     insertSchemaChange = session.prepare("""
-      INSERT INTO ${keyspace}.$CHANGELOG_TABLE (bucket, revision, version, applied_at, hash, author, description, tags)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO ${keyspace}.$CHANGELOG_TABLE (bucket, revision, version, hash, author, description, tags)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       """
     )
+
+    updateAppliedAt = session.prepare(
+        "UPDATE ${keyspace}.$CHANGELOG_TABLE SET applied_at = ? WHERE bucket = ? AND revision = ?")
   }
 
   def createChangeLogTableIfNecessary() {
@@ -298,11 +317,28 @@ CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
 ${changeSet.cql.join('\n')}
 --"""
     )
+    if (updateChangeLog) {
+      insertChangeSet(changeSet, index)
+    }
     changeSet.cql.each { executeCQL(it) }
     if (updateChangeLog) {
-      executeCQL(insertSchemaChange.bind((int) (index / bucketSize), index, changeSet.version, new Date(),
-          changeSet.hash, changeSet.author, changeSet.description, changeSet.tags))
+      updateAppliedAt(index)
     }
+  }
+
+  def insertChangeSet(ChangeSet changeSet, int index) {
+    int bucket = index / bucketSize
+    executeCQL(insertSchemaChange.bind(bucket, index, changeSet.version, changeSet.hash, changeSet.author,
+        changeSet.description, changeSet.tags))
+  }
+
+  def updateAppliedAt(int index) {
+    updateAppliedAt(index, new Date())
+  }
+
+  def updateAppliedAt(int index, Date timestamp) {
+    int bucket = index / bucketSize
+    executeCQL(updateAppliedAt.bind(timestamp, bucket, index))
   }
 
   def toHex(ByteBuffer buffer) {

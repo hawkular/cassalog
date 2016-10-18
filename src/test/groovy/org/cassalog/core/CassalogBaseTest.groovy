@@ -17,6 +17,7 @@
 package org.cassalog.core
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.PreparedStatement
+import com.datastax.driver.core.QueryOptions
 import com.datastax.driver.core.Row
 import com.datastax.driver.core.Session
 import org.testng.annotations.BeforeSuite
@@ -33,9 +34,14 @@ class CassalogBaseTest {
 
   static Cluster cluster
 
+  static VerificationFunctions verificationFunctions
+
   @BeforeSuite
   static void initTest() {
-    cluster = new Cluster.Builder().addContactPoint('127.0.0.1').build()
+    cluster = new Cluster.Builder()
+        .addContactPoint('127.0.0.1')
+        .withQueryOptions(new QueryOptions(refreshSchemaIntervalMillis: 0))
+        .build()
     session = cluster.connect()
 //    findTableName = session.prepare(
 //        "SELECT columnfamily_name FROM system.schema_columnfamilies " +
@@ -45,6 +51,7 @@ class CassalogBaseTest {
         "SELECT table_name FROM system_schema.tables " +
         "WHERE keyspace_name = ? AND table_name = ?"
     )
+    verificationFunctions = new VerificationFunctions(session: session)
   }
 
   static void resetSchema(String keyspace) {

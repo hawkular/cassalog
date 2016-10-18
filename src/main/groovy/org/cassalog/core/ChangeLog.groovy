@@ -22,6 +22,8 @@ import com.datastax.driver.core.Row
 import com.datastax.driver.core.Session
 import com.datastax.driver.core.SimpleStatement
 
+import static org.cassalog.core.CassalogImpl.CHANGELOG_TABLE
+
 /**
  * This class provides a view of the change log stored in the database. Change log entries can be read after calling
  * the {@link ChangeLog#load() load} method. Creating and Updating the change log table is currently done by
@@ -57,22 +59,21 @@ class ChangeLog {
 
   private PreparedStatement loadBucket
 
-  void load() {
-    loadBucket = session.prepare("""
-      SELECT version, applied_at, hash, author, description, tags
-      FROM ${keyspace}.$CassalogImpl.CHANGELOG_TABLE
-      WHERE bucket = ?
-      """
-    )
+  private PreparedStatement insertChangeSet
 
-    def findBuckets = new SimpleStatement("SELECT DISTINCT bucket FROM ${keyspace}.$CassalogImpl.CHANGELOG_TABLE")
+  private PreparedStatement updateAppliedAt
+
+  void load() {
+    initPreparedStatements()
+
+    def findBuckets = new SimpleStatement("SELECT DISTINCT bucket FROM ${keyspace}.$CHANGELOG_TABLE")
     findBuckets.consistencyLevel = consistencyLevel
     def bucketResultSet = session.execute(findBuckets)
 
     if (!bucketResultSet.exhausted) {
       int bucket = bucketResultSet.all().max { it.getInt(0) }.getInt(0)
       def findRevisions = new SimpleStatement(
-          "SELECT revision FROM ${keyspace}.$CassalogImpl.CHANGELOG_TABLE " +
+          "SELECT revision FROM ${keyspace}.$CHANGELOG_TABLE " +
           "WHERE bucket = $bucket " +
           "ORDER BY revision DESC"
       )
@@ -81,6 +82,25 @@ class ChangeLog {
       def revisionsResultSet = session.execute(findRevisions)
       numRevisions = revisionsResultSet.all().first().getInt(0) + 1
     }
+  }
+
+  private void initPreparedStatements() {
+    loadBucket = session.prepare("""
+      SELECT version, applied_at, hash, author, description, tags, writetime(hash)
+      FROM ${keyspace}.$CHANGELOG_TABLE
+      WHERE bucket = ?
+      """
+    )
+
+    insertChangeSet = session.prepare("""
+      INSERT INTO ${keyspace}.${CHANGELOG_TABLE} (bucket, revision, version, hash, author, description, tags,
+applied_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      """
+    )
+
+    updateAppliedAt = session.prepare(
+        "UPDATE ${keyspace}.$CHANGELOG_TABLE SET applied_at = ? WHERE bucket = ? AND revision = ?")
   }
 
   int getSize() {
@@ -93,18 +113,32 @@ class ChangeLog {
       return null
     }
     if (buckets[index] == null) {
-      initBucket(index)
+      loadBucket(index)
     }
     def bucket = buckets[index]
     int offset = revision % bucketSize
     return bucket[offset]
   }
 
-  def initBucket(int bucket) {
+  def loadBucket(int bucket) {
     def resultSet = session.execute(loadBucket.bind(bucket))
     def changeSets = []
     resultSet.each { changeSets << toChangeSet(it) }
     buckets[bucket] = changeSets
+  }
+
+  def leftShift(ChangeSet changeSet) {
+    add(changeSet)
+  }
+
+  def add(ChangeSet changeSet) {
+    int index = (int) (numRevisions / bucketSize)
+    if (buckets[index] == null) {
+      buckets[index] = []
+    }
+    buckets[index] << changeSet
+    session.execute(insertChangeSet.bind(index, numRevisions++, changeSet.version, changeSet.hash,
+        changeSet.author, changeSet.description, changeSet.tags, changeSet.appliedAt))
   }
 
   def toChangeSet(Row row) {
@@ -114,7 +148,8 @@ class ChangeLog {
         hash: row.getBytes(2),
         author: row.getString(3),
         description: row.getString(4),
-        tags: row.getSet(5, String)
+        tags: row.getSet(5, String),
+        timestamp: new Date((row.getLong(6) / 1000) as Long)
     )
   }
 
