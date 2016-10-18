@@ -193,7 +193,7 @@ class CassalogTest extends CassalogBaseTest {
 
     assertTableExists(keyspace, 'test3')
 
-    // Now let's rerun the schema change script to make sure it is a no-op. Doing this will verify that we are searching
+    // Now let's rerun the schema change script to make sure it is a no-op. Doing this will verifyFunction that we are searching
     // across buckets for changes that have already been applied.
     cassalog.execute(script2, [keyspace: keyspace])
   }
@@ -289,4 +289,114 @@ class CassalogTest extends CassalogBaseTest {
     verifyChangeLog(changeLogRows)
   }
 
+
+  @Test
+  void resumeCreateTableWhenChangeWasAlreadyApplied() {
+    String keyspace = 'resume_create_table_applied'
+    resetSchema(keyspace)
+
+    String cql = "CREATE TABLE ${keyspace}.test1 (x int, y text, PRIMARY KEY (x))"
+
+    def script = getClass().getResource('/resume_updates/create_tables.groovy').toURI()
+
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
+    cassalog.createChangeLogTableIfNecessary()
+    cassalog.initPreparedStatements()
+
+    def changeSet = new CqlChangeSet(cql: [cql], version: '1.0')
+    cassalog.insertChangeSet(changeSet, 0)
+
+    cassalog.execute(script, [keyspace: keyspace])
+
+    assertTableExists(keyspace, 'test1')
+    assertTableExists(keyspace, 'test2')
+  }
+
+  @Test
+  void resumeCreateTableWhenChangeHasNotBeenApplied() {
+    String keyspace = 'resume_create_table_not_applied'
+    resetSchema(keyspace)
+
+    String cql = "CREATE TABLE ${keyspace}.test1 (x int, y text, PRIMARY KEY (x))"
+
+    def script = getClass().getResource('/resume_updates/create_tables.groovy').toURI()
+
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
+    cassalog.createChangeLogTableIfNecessary()
+    cassalog.initPreparedStatements()
+
+    def changeSet = new CqlChangeSet(cql: [cql], version: '1.0')
+    cassalog.insertChangeSet(changeSet, 0)
+
+    cassalog.execute(script, [keyspace: keyspace])
+
+    assertTableExists(keyspace, 'test1')
+    assertTableExists(keyspace, 'test2')
+  }
+
+  @Test
+  void resumeAddColumnWhenChangeWasAlreadyApplied() {
+    String keyspace = 'resume_add_column_applied'
+    resetSchema(keyspace)
+
+    session.execute("CREATE TABLE ${keyspace}.test (x int, y text, PRIMARY KEY (x))")
+
+    def script = getClass().getResource('/resume_updates/columns.groovy').toURI()
+
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
+    cassalog.createChangeLogTableIfNecessary()
+    cassalog.initPreparedStatements()
+
+    def addColumn = new CqlChangeSet(cql: ["ALTER TABLE ${keyspace}.test ADD z text"], version: '1.0')
+
+    cassalog.insertChangeSet(addColumn, 0)
+
+    cassalog.execute(script, [keyspace: keyspace])
+
+    // No assertions necessary, just want to make sure cassalog runs without error
+  }
+
+  @Test
+  void resumeAddColumnWhenChangeHasNotBeenApplied() {
+    String keyspace = 'resume_add_column_not_applied'
+    resetSchema(keyspace)
+
+    session.execute("CREATE TABLE ${keyspace}.test (x int, y text, PRIMARY KEY (x))")
+
+    def script = getClass().getResource('/resume_updates/columns.groovy').toURI()
+
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
+    cassalog.createChangeLogTableIfNecessary()
+    cassalog.initPreparedStatements()
+
+    def addColumn = new CqlChangeSet(cql: ["ALTER TABLE ${keyspace}.test ADD z text"], version: '1.0')
+
+    cassalog.insertChangeSet(addColumn, 0)
+    cassalog.execute(script, [keyspace: keyspace])
+
+    assertTrue(verificationFunctions.columnExists(keyspace, 'test', 'z'))
+  }
+
+  @Test
+  void resumeDropColumnWhenChangeHasBeenApplied() {
+    String keyspace = 'resume_drop_column_applied'
+    resetSchema(keyspace)
+
+    session.execute("CREATE TABLE ${keyspace}.test (x int, y text, PRIMARY KEY (x))")
+
+    def script = getClass().getResource('/resume_updates/columns.groovy').toURI()
+
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
+    cassalog.createChangeLogTableIfNecessary()
+    cassalog.initPreparedStatements()
+
+    def addColumn = new CqlChangeSet(cql: ["ALTER TABLE ${keyspace}.test ADD z text"], version: '1.0')
+    def dropColumn = new CqlChangeSet(cql: ["ALTER TABLE ${keyspace}.test DROP y"], version: '2.0')
+
+    cassalog.applyChangeSet(addColumn, 0, true)
+    cassalog.insertChangeSet(dropColumn, 1)
+    cassalog.execute(script, [keyspace: keyspace])
+
+    assertTrue(verificationFunctions.columnDoesNotExist(keyspace, 'test', 'y'))
+  }
 }

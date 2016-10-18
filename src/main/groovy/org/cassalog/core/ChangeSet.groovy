@@ -66,11 +66,18 @@ class ChangeSet {
   String description
 
   /**
+   * This is Cassandra's internal timestamp of when the row was written.
+   */
+  Date timestamp
+
+  /**
    * By default a change set is applied only if it has not already been executed and more precisely not recorded in the
    * change log table. There are times when we want to execute a change set even if it has already been applied. A good
    * example of this would be for the USE <keyspace> statement.
    */
   boolean alwaysRun
+
+  Closure verifyFunction
 
   ByteBuffer getHash() {
     if (hash == null) {
@@ -107,6 +114,10 @@ class ChangeSet {
     if (version == null) {
       throw new ChangeSetValidationException('The version property must be set')
     }
+  }
+
+  void verify(Closure verifyFunction) {
+    this.verifyFunction = verifyFunction
   }
 
 }
