@@ -399,4 +399,28 @@ class CassalogTest extends CassalogBaseTest {
 
     assertTrue(verificationFunctions.columnDoesNotExist(keyspace, 'test', 'y'))
   }
+
+  @Test
+  void resumeInsertRowWhenChangeHasNotBeenApplied() {
+    String keyspace = 'resume_insert_row_not_applied'
+    resetSchema(keyspace)
+
+    def script = getClass().getResource('/resume_updates/insert.groovy').toURI()
+
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
+    cassalog.createChangeLogTableIfNecessary()
+    cassalog.initPreparedStatements()
+
+    def createTable = new CqlChangeSet(cql: ["CREATE TABLE ${keyspace}.test (x int PRIMARY KEY, y int)"],
+        version: '1.0')
+    cassalog.applyChangeSet(createTable, 0, true)
+    def insert = new CqlChangeSet(cql: ["INSERT INTO ${keyspace}.test (x, y) VALUES (1, 2)"], version: '2.0')
+    cassalog.insertChangeSet(insert, 1)
+    cassalog.execute(script, [keyspace: keyspace])
+
+    def resultSet = session.execute("select y from ${keyspace}.test where x = 1")
+    def rows = resultSet.all()
+    assertEquals(rows.size(), 1)
+    assertEquals(2 as Integer, rows[0].getInt(0))
+  }
 }

@@ -124,7 +124,7 @@ class CassalogImpl implements Cassalog {
       } else if (i < changeLog.size) {
         validateChange(change, changeLog[i])
         if (changeLog[i].appliedAt == null) {
-          if (change.verifyFunction == null || change.verifyFunction()) {
+          if (change.verifyFunction != null && change.verifyFunction()) {
             updateAppliedAt(i, changeLog[i].timestamp)
           } else {
             applyChangeSet(change, i, true)
