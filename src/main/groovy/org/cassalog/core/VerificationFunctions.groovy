@@ -47,8 +47,8 @@ class VerificationFunctions {
   }
 
   boolean typeExists(String keyspace, String type) {
-    def typesMetaData = getKeyspaceMetaData(keyspace)?.userTypes
-    return typesMetaData?.find { it.name.name() == type } != null
+    def keyspaceMetaData = getKeyspaceMetaData(keyspace)
+    return keyspaceMetaData?.getUserType(type) != null
   }
 
   boolean typeDoesNotExist(String keyspace, String type) {
