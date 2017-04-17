@@ -27,6 +27,8 @@ class CassalogBuilder {
 
   private Session session
 
+  private String baseScriptsPath
+
   CassalogBuilder withKeyspace(String keyspace) {
     this.keyspace = keyspace
     return this
@@ -34,11 +36,16 @@ class CassalogBuilder {
 
   CassalogBuilder withSession(Session session) {
     this.session = session
-    return this;
+    return this
+  }
+
+  CassalogBuilder withBaseScriptsPath(String baseScriptsPath) {
+    this.baseScriptsPath = baseScriptsPath
+    return this
   }
 
   Cassalog build() {
-    return new CassalogImpl(keyspace: keyspace, session: session)
+    return new CassalogImpl(keyspace: keyspace, session: session, baseScriptsPath: baseScriptsPath)
   }
 
 }
