@@ -26,7 +26,7 @@ import static org.testng.Assert.assertEquals
 class IncludeTest extends CassalogBaseTest {
 
   @Test
-  void includeScriptAfterChanges() {
+  void includeScriptAfterChangesClasspath() {
     def keyspace = 'include_after'
     resetSchema(keyspace)
 
@@ -45,7 +45,7 @@ class IncludeTest extends CassalogBaseTest {
   }
 
   @Test
-  void includeScriptBeforeChanges() {
+  void includeScriptBeforeChangesClasspath() {
     def keyspace = 'include_before'
     resetSchema(keyspace)
 
@@ -61,7 +61,7 @@ class IncludeTest extends CassalogBaseTest {
   }
 
   @Test
-  void multipleIncludes() {
+  void multipleIncludesClasspath() {
     def keyspace = 'multiple_includes'
     resetSchema(keyspace)
 
@@ -77,7 +77,7 @@ class IncludeTest extends CassalogBaseTest {
   }
 
   @Test
-  void nestedIncludes() {
+  void nestedIncludesClasspath() {
     def keyspace = 'nested_includes'
     resetSchema(keyspace)
 
@@ -91,5 +91,75 @@ class IncludeTest extends CassalogBaseTest {
     assertChangeSetEquals(rows[0], new ChangeSet(version: 'second-table'))
     assertChangeSetEquals(rows[1], new ChangeSet(version: 'third-table'))
   }
+  @Test
+  void includeScriptAfterChangesBasePath() {
+    def keyspace = 'include_after'
+    resetSchema(keyspace)
 
+    def script = getClass().getResource('/include/script1.groovy').toURI()
+
+    def baseScriptsPath = new File(getClass().getResource('/').toURI()).absolutePath
+
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session, baseScriptsPath: baseScriptsPath)
+    cassalog.execute(script, [keyspace: keyspace])
+
+    assertTableExists(keyspace, 'test1')
+    assertTableExists(keyspace, 'test2')
+
+    def rows = findChangeSets(keyspace, 0)
+    assertEquals(rows.size(), 2)
+    assertChangeSetEquals(rows[0], new ChangeSet(version: 'first-table'))
+    assertChangeSetEquals(rows[1], new ChangeSet(version: 'second-table'))
+  }
+
+  @Test
+  void includeScriptBeforeChangesBasePath() {
+    def keyspace = 'include_before'
+    resetSchema(keyspace)
+
+    def script = getClass().getResource('/include/script3.groovy').toURI()
+    def baseScriptsPath = new File(getClass().getResource('/').toURI()).absolutePath
+
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session, baseScriptsPath: baseScriptsPath)
+    cassalog.execute(script, [keyspace: keyspace])
+
+    def rows = findChangeSets(keyspace, 0)
+    assertEquals(rows.size(), 2)
+    assertChangeSetEquals(rows[0], new ChangeSet(version: 'second-table'))
+    assertChangeSetEquals(rows[1], new ChangeSet(version: 'third-table'))
+  }
+
+  @Test
+  void multipleIncludesBasePath() {
+    def keyspace = 'multiple_includes'
+    resetSchema(keyspace)
+
+    def script = getClass().getResource('/include/multiple_includes.groovy').toURI()
+    def baseScriptsPath = new File(getClass().getResource('/').toURI()).absolutePath
+
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session, baseScriptsPath: baseScriptsPath)
+    cassalog.execute(script, [keyspace: keyspace])
+
+    def rows = findChangeSets(keyspace, 0)
+    assertEquals(rows.size(), 2)
+    assertChangeSetEquals(rows[0], new ChangeSet(version: 'second-table'))
+    assertChangeSetEquals(rows[1], new ChangeSet(version: 'fourth-table'))
+  }
+
+  @Test
+  void nestedIncludesBasePath() {
+    def keyspace = 'nested_includes'
+    resetSchema(keyspace)
+
+    def script = getClass().getResource('/include/nested.groovy').toURI()
+    def baseScriptsPath = new File(getClass().getResource('/').toURI()).absolutePath
+
+    def cassalog = new CassalogImpl(keyspace: keyspace, session: session, baseScriptsPath: baseScriptsPath)
+    cassalog.execute(script, [keyspace: keyspace])
+
+    def rows = findChangeSets(keyspace, 0)
+    assertEquals(rows.size(), 2)
+    assertChangeSetEquals(rows[0], new ChangeSet(version: 'second-table'))
+    assertChangeSetEquals(rows[1], new ChangeSet(version: 'third-table'))
+  }
 }

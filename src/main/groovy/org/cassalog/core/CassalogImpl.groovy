@@ -39,6 +39,8 @@ class CassalogImpl implements Cassalog {
 
   Session session
 
+  String baseScriptsPath
+
   int bucketSize = DEFAULT_BUCKET_SIZE
 
   PreparedStatement insertSchemaChange
@@ -196,7 +198,12 @@ class CassalogImpl implements Cassalog {
     scriptVars.putAll(createScriptHelperFunctions())
 
     def shell = new GroovyShell(binding)
-    def scriptURI = getClass().getResource(script).toURI()
+    def scriptURI
+    if (baseScriptsPath != null && baseScriptsPath != "") {
+      scriptURI = new File(baseScriptsPath + script).toURI()
+    } else {
+      scriptURI = getClass().getResource(script).toURI()
+    }
     shell.evaluate(scriptURI)
 
     return dbchanges

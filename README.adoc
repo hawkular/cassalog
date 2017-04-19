@@ -192,7 +192,9 @@ include '/dbchanges/seed_data.groovy'
 ----
 
 The `include` function currently takes a single string argument that should
-specify the absolute path of a script on the classpath.
+specify the absolute path of a script on the classpath or from the configured `baseScriptsPath`.
+
+`baseScriptsPath` is an absolute path to where the other include scripts are located e.g. `/Users/john/cassalog/scripts`.
 
 === Schema change detection
 Cassalog does not store the CQL code associated with each schema change. It
