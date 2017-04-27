@@ -16,6 +16,7 @@
  */
 package org.cassalog.core
 
+import com.datastax.driver.core.Row
 import org.testng.annotations.Test
 
 import static org.testng.Assert.*
@@ -102,6 +103,28 @@ class CassalogTest extends CassalogBaseTest {
     assertEquals(rows.size(), 2)
     assertChangeSetEquals(rows[0], new ChangeSet(version: change1Id, author: 'admin', description: 'create keyspace test'))
     assertChangeSetEquals(rows[1], new ChangeSet(version: change2Id, author: 'admin', description: 'test'))
+  }
+
+  @Test
+  void createKeyspaceWithParameters() {
+    def keyspace = 'cassalog_create_use_ks'
+
+    session.execute("DROP KEYSPACE IF EXISTS $keyspace")
+
+    def script = getClass().getResource('/create_keyspace/script6.groovy').toURI()
+
+    def cassalog = new CassalogImpl(session: session)
+    def replicationFactor = 3
+    cassalog.execute(script, [keyspace: keyspace, replicationFactor: replicationFactor])
+
+    def theKeyspace = cluster.metadata.keyspaces.stream().filter {filter -> filter.name == keyspace}.findFirst()
+    assertTrue(theKeyspace.isPresent())
+    assertEquals(theKeyspace.get().replication["replication_factor"].toInteger(), replicationFactor)
+
+    def rows = findChangeSets(keyspace, 0)
+    assertEquals(rows.size(), 1)
+    assertChangeSetEquals(rows[0], new ChangeSet(version: '1', author: 'admin',
+            description: 'create keyspace test'))
   }
 
   @Test(expectedExceptions = [ChangeSetException])
