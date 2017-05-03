@@ -27,7 +27,7 @@ class IncludeTest extends CassalogBaseTest {
 
   @Test
   void includeScriptAfterChangesClasspath() {
-    def keyspace = 'include_after'
+    keyspace = 'include_after'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/include/script1.groovy').toURI()
@@ -46,7 +46,7 @@ class IncludeTest extends CassalogBaseTest {
 
   @Test
   void includeScriptBeforeChangesClasspath() {
-    def keyspace = 'include_before'
+    keyspace = 'include_before'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/include/script3.groovy').toURI()
@@ -62,7 +62,7 @@ class IncludeTest extends CassalogBaseTest {
 
   @Test
   void multipleIncludesClasspath() {
-    def keyspace = 'multiple_includes'
+    keyspace = 'multiple_includes'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/include/multiple_includes.groovy').toURI()
@@ -78,7 +78,7 @@ class IncludeTest extends CassalogBaseTest {
 
   @Test
   void nestedIncludesClasspath() {
-    def keyspace = 'nested_includes'
+    keyspace = 'nested_includes'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/include/nested.groovy').toURI()
@@ -93,7 +93,7 @@ class IncludeTest extends CassalogBaseTest {
   }
   @Test
   void includeScriptAfterChangesBasePath() {
-    def keyspace = 'include_after'
+    keyspace = 'include_after'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/include/script1.groovy').toURI()
@@ -114,7 +114,7 @@ class IncludeTest extends CassalogBaseTest {
 
   @Test
   void includeScriptBeforeChangesBasePath() {
-    def keyspace = 'include_before'
+    keyspace = 'include_before'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/include/script3.groovy').toURI()
@@ -131,7 +131,7 @@ class IncludeTest extends CassalogBaseTest {
 
   @Test
   void multipleIncludesBasePath() {
-    def keyspace = 'multiple_includes'
+    keyspace = 'multiple_includes'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/include/multiple_includes.groovy').toURI()
@@ -148,7 +148,7 @@ class IncludeTest extends CassalogBaseTest {
 
   @Test
   void nestedIncludesBasePath() {
-    def keyspace = 'nested_includes'
+    keyspace = 'nested_includes'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/include/nested.groovy').toURI()

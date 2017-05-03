@@ -27,7 +27,7 @@ class MultipleCQLStatementsTest extends CassalogBaseTest {
 
   @Test
   void executeMultipleCQLStatements() {
-    def keyspace = 'multiple_cql_statements'
+    keyspace = 'multiple_cql_statements'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/multiple_cql_statements/script1.groovy').toURI()
