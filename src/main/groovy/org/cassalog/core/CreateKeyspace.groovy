@@ -72,7 +72,7 @@ CREATE KEYSPACE $name WITH replication = { 'class': '${replication.strategy}', '
 
   void replication(Closure closure) {
     closure.delegate = replication
-    closure.resolveStrategy = Closure.DELEGATE_ONLY
+    closure.resolveStrategy = Closure.OWNER_FIRST
     closure()
   }
 

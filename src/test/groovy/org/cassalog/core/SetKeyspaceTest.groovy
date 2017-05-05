@@ -25,7 +25,7 @@ class SetKeyspaceTest extends CassalogBaseTest {
 
   @Test
   void setKeyspace() {
-    def keyspace = 'set_keyspace'
+    keyspace = 'set_keyspace'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/set_keyspace/script1.groovy').toURI()
@@ -38,7 +38,7 @@ class SetKeyspaceTest extends CassalogBaseTest {
 
   @Test
   void alwaysRun() {
-    def keyspace = 'alwaysrun'
+    keyspace = 'alwaysrun'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/set_keyspace/script3.groovy').toURI()

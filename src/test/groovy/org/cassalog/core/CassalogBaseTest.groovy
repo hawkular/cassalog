@@ -16,10 +16,12 @@
  */
 package org.cassalog.core
 import com.datastax.driver.core.Cluster
+import com.datastax.driver.core.KeyspaceMetadata
 import com.datastax.driver.core.PreparedStatement
 import com.datastax.driver.core.QueryOptions
 import com.datastax.driver.core.Row
 import com.datastax.driver.core.Session
+import org.testng.annotations.AfterTest
 import org.testng.annotations.BeforeSuite
 
 import static org.testng.Assert.*
@@ -27,6 +29,7 @@ import static org.testng.Assert.*
  * @author jsanda
  */
 class CassalogBaseTest {
+  static String keyspace
 
   static Session session
 
@@ -52,6 +55,15 @@ class CassalogBaseTest {
         "WHERE keyspace_name = ? AND table_name = ?"
     )
     verificationFunctions = new VerificationFunctions(session: session)
+  }
+
+  @AfterTest
+  void cleanupKeyspace() {
+    resetSchema(keyspace)
+  }
+
+  static Optional<KeyspaceMetadata> findKeyspace(String keyspace) {
+    cluster.metadata.keyspaces.stream().filter {filter -> filter.name == keyspace}.findFirst()
   }
 
   static void resetSchema(String keyspace) {

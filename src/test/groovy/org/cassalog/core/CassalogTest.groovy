@@ -19,6 +19,7 @@ package org.cassalog.core
 import org.testng.annotations.Test
 
 import static org.testng.Assert.*
+
 /**
  * @author jsanda
  */
@@ -26,7 +27,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test
   void applySingleChangeToExistingKeyspace() {
-    String keyspace = 'single_change'
+    keyspace = 'single_change'
 
     resetSchema(keyspace)
 
@@ -104,6 +105,28 @@ class CassalogTest extends CassalogBaseTest {
     assertChangeSetEquals(rows[1], new ChangeSet(version: change2Id, author: 'admin', description: 'test'))
   }
 
+  @Test
+  void createKeyspaceWithParameters() {
+    def keyspace = 'cassalog_create_use_ks'
+
+    session.execute("DROP KEYSPACE IF EXISTS $keyspace")
+
+    def script = getClass().getResource('/create_keyspace/script6.groovy').toURI()
+
+    def cassalog = new CassalogImpl(session: session)
+    def replicationFactor = 3
+    cassalog.execute(script, [keyspace: keyspace, replicationFactor: replicationFactor])
+
+    def theKeyspace = findKeyspace(keyspace)
+    assertTrue(theKeyspace.isPresent())
+    assertEquals(theKeyspace.get().replication["replication_factor"].toInteger(), replicationFactor)
+
+    def rows = findChangeSets(keyspace, 0)
+    assertEquals(rows.size(), 1)
+    assertChangeSetEquals(rows[0], new ChangeSet(version: '1', author: 'admin',
+            description: 'create keyspace test'))
+  }
+
   @Test(expectedExceptions = [ChangeSetException])
   void createAndDoNotUseKeyspace() {
     def keyspace = 'cassalog_do_not_use_ks'
@@ -149,7 +172,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test
   void appendChangesToExistingScript() {
-    String keyspace = 'append_changes'
+    keyspace = 'append_changes'
 
     resetSchema(keyspace)
 
@@ -180,7 +203,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test
   void applyChangesAcrossMultipleBuckets() {
-    String keyspace = 'multiple_buckets'
+    keyspace = 'multiple_buckets'
 
     resetSchema(keyspace)
 
@@ -200,7 +223,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test(expectedExceptions = ChangeSetAlteredException)
   void modifyingAppliedChangeSetShouldFail() {
-    String keyspace = 'fail_modified_changeset'
+    keyspace = 'fail_modified_changeset'
 
     resetSchema(keyspace)
 
@@ -221,14 +244,14 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test(dependsOnMethods = 'modifyingAppliedChangeSetShouldFail')
   void abortAfterFailure() {
-    String keyspace = 'fail_modified_changeset'
+    keyspace = 'fail_modified_changeset'
 
     assertTableDoesNotExist(keyspace, 'test3')
   }
 
   @Test(expectedExceptions = ChangeSetAlteredException)
   void changingIdOfAppliedChangeSetShouldFail() {
-    String keyspace = 'change_id'
+    keyspace = 'change_id'
 
     resetSchema(keyspace)
     
@@ -247,7 +270,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test(expectedExceptions = ChangeSetValidationException, dependsOnMethods = 'setUpBasicValidation')
   void versionIsRequired() {
-    String keyspace = 'basic_validation'
+    keyspace = 'basic_validation'
 
     def script = getClass().getResource('/basic_validation/script1.groovy').toURI()
     def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
@@ -256,7 +279,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test(expectedExceptions = ChangeSetValidationException, dependsOnMethods = 'setUpBasicValidation')
   void cqlIsRequired() {
-    String keyspace = 'basic_validation'
+    keyspace = 'basic_validation'
 
     def script = getClass().getResource('/basic_validation/script2.groovy').toURI()
     def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
@@ -265,7 +288,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test
   void applyChangesWithTag() {
-    String keyspace = 'tags_test'
+    keyspace = 'tags_test'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/tags_test/script1.groovy').toURI()
@@ -292,7 +315,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test
   void resumeCreateTableWhenChangeWasAlreadyApplied() {
-    String keyspace = 'resume_create_table_applied'
+    keyspace = 'resume_create_table_applied'
     resetSchema(keyspace)
 
     String cql = "CREATE TABLE ${keyspace}.test1 (x int, y text, PRIMARY KEY (x))"
@@ -314,7 +337,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test
   void resumeCreateTableWhenChangeHasNotBeenApplied() {
-    String keyspace = 'resume_create_table_not_applied'
+    keyspace = 'resume_create_table_not_applied'
     resetSchema(keyspace)
 
     String cql = "CREATE TABLE ${keyspace}.test1 (x int, y text, PRIMARY KEY (x))"
@@ -336,7 +359,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test
   void resumeAddColumnWhenChangeWasAlreadyApplied() {
-    String keyspace = 'resume_add_column_applied'
+    keyspace = 'resume_add_column_applied'
     resetSchema(keyspace)
 
     session.execute("CREATE TABLE ${keyspace}.test (x int, y text, PRIMARY KEY (x))")
@@ -358,7 +381,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test
   void resumeAddColumnWhenChangeHasNotBeenApplied() {
-    String keyspace = 'resume_add_column_not_applied'
+    keyspace = 'resume_add_column_not_applied'
     resetSchema(keyspace)
 
     session.execute("CREATE TABLE ${keyspace}.test (x int, y text, PRIMARY KEY (x))")
@@ -379,7 +402,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test
   void resumeDropColumnWhenChangeHasBeenApplied() {
-    String keyspace = 'resume_drop_column_applied'
+    keyspace = 'resume_drop_column_applied'
     resetSchema(keyspace)
 
     session.execute("CREATE TABLE ${keyspace}.test (x int, y text, PRIMARY KEY (x))")
@@ -402,7 +425,7 @@ class CassalogTest extends CassalogBaseTest {
 
   @Test
   void resumeInsertRowWhenChangeHasNotBeenApplied() {
-    String keyspace = 'resume_insert_row_not_applied'
+    keyspace = 'resume_insert_row_not_applied'
     resetSchema(keyspace)
 
     def script = getClass().getResource('/resume_updates/insert.groovy').toURI()
