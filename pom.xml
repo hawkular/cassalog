@@ -83,7 +83,7 @@
   <dependencies>
     <dependency>
       <groupId>org.codehaus.groovy</groupId>
-      <artifactId>groovy-all</artifactId>
+      <artifactId>groovy</artifactId>
       <version>${version.org.codehaus.groovy}</version>
     </dependency>
 
