@@ -51,7 +51,7 @@ class SetKeyspaceTest extends CassalogBaseTest {
     // Directly execute the change set to simulate a situation a script has start execution and then later
     // executed again. The latter execution should re-apply the setKeyspace command since it defaults to
     // always run.
-    cassalog.applyChangeSet(setKeyspace, 0, true)
+    cassalog.applyChangeSet(setKeyspace, 0, true, CassalogImpl.NO_OP_LISTENER)
     // Switching to the the system keyspace will make the script fail if the setKeyspace function does not get
     // executed.
     session.execute("USE system")

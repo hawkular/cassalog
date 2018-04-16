@@ -292,9 +292,13 @@ class CassalogTest extends CassalogBaseTest {
     resetSchema(keyspace)
 
     def script = getClass().getResource('/tags_test/script1.groovy').toURI()
-
+    def appliedChanges = []
     def cassalog = new CassalogImpl(keyspace: keyspace, session: session)
-    cassalog.execute(script, ['dev'], [keyspace: keyspace])
+    cassalog.execute(script, ['dev'], [keyspace: keyspace], { appliedChanges << it })
+
+    assertEquals(appliedChanges.size(), 2)
+    assertEquals(appliedChanges[0].version, 'table-1')
+    assertEquals(appliedChanges[1].version, 'dev-data')
 
     def changeLogRows = findChangeSets(keyspace, 0)
 
@@ -311,7 +315,6 @@ class CassalogTest extends CassalogBaseTest {
     changeLogRows = findChangeSets(keyspace, 0)
     verifyChangeLog(changeLogRows)
   }
-
 
   @Test
   void resumeCreateTableWhenChangeWasAlreadyApplied() {
@@ -416,7 +419,7 @@ class CassalogTest extends CassalogBaseTest {
     def addColumn = new CqlChangeSet(cql: ["ALTER TABLE ${keyspace}.test ADD z text"], version: '1.0')
     def dropColumn = new CqlChangeSet(cql: ["ALTER TABLE ${keyspace}.test DROP y"], version: '2.0')
 
-    cassalog.applyChangeSet(addColumn, 0, true)
+    cassalog.applyChangeSet(addColumn, 0, true, CassalogImpl.NO_OP_LISTENER)
     cassalog.insertChangeSet(dropColumn, 1)
     cassalog.execute(script, [keyspace: keyspace])
 
@@ -436,7 +439,7 @@ class CassalogTest extends CassalogBaseTest {
 
     def createTable = new CqlChangeSet(cql: ["CREATE TABLE ${keyspace}.test (x int PRIMARY KEY, y int)"],
         version: '1.0')
-    cassalog.applyChangeSet(createTable, 0, true)
+    cassalog.applyChangeSet(createTable, 0, true, CassalogImpl.NO_OP_LISTENER)
     def insert = new CqlChangeSet(cql: ["INSERT INTO ${keyspace}.test (x, y) VALUES (1, 2)"], version: '2.0')
     cassalog.insertChangeSet(insert, 1)
     cassalog.execute(script, [keyspace: keyspace])

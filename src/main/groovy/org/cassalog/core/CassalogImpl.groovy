@@ -35,6 +35,8 @@ class CassalogImpl implements Cassalog {
 
   static final int DEFAULT_BUCKET_SIZE = 50
 
+  static final ChangeSetListener NO_OP_LISTENER = { }
+
   String keyspace
 
   Session session
@@ -64,8 +66,12 @@ class CassalogImpl implements Cassalog {
     execute(script, tags, [keyspace: keyspace])
   }
 
-  @Override
   void execute(URI script, Collection tags, Map vars) {
+    execute(script, tags, vars, NO_OP_LISTENER)
+  }
+
+  @Override
+  void execute(URI script, Collection tags, Map vars, ChangeSetListener listener) {
     verifyCassandraVersion()
     verifySchemaAgreement()
     determineConsistencyLevel()
@@ -85,7 +91,7 @@ class CassalogImpl implements Cassalog {
         executeCQL("DROP KEYSPACE IF EXISTS $keyspace")
       }
       if (!keyspaceExists()) {
-        applyChangeSet(changeSets[0], 0, false)
+        applyChangeSet(changeSets[0], 0, false, listener)
         createChangeLogTableIfNecessary()
         initPreparedStatements()
         executeCQL(insertSchemaChange.bind(0, 0, changeSets[0].version, changeSets[0].hash, changeSets[0].author,
@@ -118,9 +124,9 @@ class CassalogImpl implements Cassalog {
       if (change.alwaysRun) {
         if (i < changeLog.size) {
           validateChange(change, changeLog[i])
-          applyChangeSet(change, i, false)
+          applyChangeSet(change, i, false, listener)
         } else {
-          applyChangeSet(change, i, true)
+          applyChangeSet(change, i, true, listener)
         }
 
       } else if (i < changeLog.size) {
@@ -128,18 +134,29 @@ class CassalogImpl implements Cassalog {
         if (changeLog[i].appliedAt == null) {
           if (change.verifyFunction != null && change.verifyFunction()) {
             updateAppliedAt(i, changeLog[i].timestamp)
+            listener.changeSetApplied(change)
           } else {
-            applyChangeSet(change, i, true)
+            applyChangeSet(change, i, true, listener)
           }
         }
       } else {
         try {
-          applyChangeSet(change, i, true)
+          applyChangeSet(change, i, true, listener)
         } catch (InvalidQueryException e) {
           throw new ChangeSetException(e)
         }
       }
     }
+  }
+
+  List<ChangeSet> load(URI script, Collection tags, Map vars) {
+    def changeSets = []
+    GroovyShell shell = new GroovyShell(createBinding(changeSets, vars))
+    shell.evaluate(script)
+
+    def tagsFilter = { changeSetTags -> tags.empty || changeSetTags.any { tags.contains(it) } }
+    tagsFilter = { changeSetTags -> tags.empty || changeSetTags.any { tags.contains(it) } }
+    return changeSets.findAll({ changeSet -> tagsFilter(changeSet.tags) })
   }
 
   private void validateChange(change, appliedChange) {
@@ -318,7 +335,7 @@ CREATE TABLE ${keyspace}.$CHANGELOG_TABLE(
     return !resultSet.exhausted
   }
 
-  def applyChangeSet(ChangeSet changeSet, int index, boolean updateChangeLog) {
+  def applyChangeSet(ChangeSet changeSet, int index, boolean updateChangeLog, ChangeSetListener listener) {
     log.info("""Applying ChangeSet
 -- version: $changeSet.version
 ${changeSet.cql.join('\n')}
@@ -331,6 +348,7 @@ ${changeSet.cql.join('\n')}
     if (updateChangeLog) {
       updateAppliedAt(index)
     }
+    listener.changeSetApplied(changeSet)
   }
 
   def insertChangeSet(ChangeSet changeSet, int index) {

@@ -12,4 +12,8 @@ interface Cassalog {
   void execute(URI script, Collection tags)
 
   void execute(URI script, Collection tags, Map vars)
+
+  void execute(URI script, Collection tags, Map vars, ChangeSetListener listener)
+
+  List<ChangeSet> load(URI script, Collection tags, Map vars)
 }
