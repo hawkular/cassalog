@@ -100,6 +100,13 @@ class CassalogImpl implements Cassalog {
       }
     }
 
+    def bootstrap = { }
+    if (changeSets[0] instanceof Closure) {
+      bootstrap = changeSets.remove(0)
+    }
+    ensureNoBootstrap(changeSets)
+    bootstrap()
+
     if (keyspace == null) {
       throw new KeyspaceUndefinedException()
     }
@@ -154,9 +161,20 @@ class CassalogImpl implements Cassalog {
     GroovyShell shell = new GroovyShell(createBinding(changeSets, vars))
     shell.evaluate(script)
 
+    if (changeSets[0] instanceof Closure) {
+      changeSets.remove(0)
+    }
+    ensureNoBootstrap(changeSets)
+
     def tagsFilter = { changeSetTags -> tags.empty || changeSetTags.any { tags.contains(it) } }
     tagsFilter = { changeSetTags -> tags.empty || changeSetTags.any { tags.contains(it) } }
     return changeSets.findAll({ changeSet -> tagsFilter(changeSet.tags) })
+  }
+
+  private void ensureNoBootstrap(List changes) {
+    if (changes.find { it instanceof Closure } != null) {
+      throw new BootstrapException("The bootstrap function can only be used before any schemaChange function calls")
+    }
   }
 
   private void validateChange(change, appliedChange) {
@@ -176,6 +194,11 @@ class CassalogImpl implements Cassalog {
     Binding binding = new Binding(scriptVars)
 
     scriptVars.createKeyspace = { schemaChanges << createKeyspace(it, binding) }
+    scriptVars.bootstrap = { schemaChanges << bootstrap(it, binding) }
+//    scriptVars.init = {
+//      it.resolveStrategy = Closure.DELEGATE_FIRST
+//      schemaChanges << it
+//    }
     scriptVars.schemaChange = { schemaChanges << createCqlChangeSet(it, binding) }
     scriptVars.setKeyspace = { schemaChanges << new SetKeyspace(name: keyspace) }
     scriptVars.include = { schemaChanges.addAll(include(it, vars)) }
@@ -194,6 +217,12 @@ class CassalogImpl implements Cassalog {
     return code.delegate
   }
 
+  def bootstrap(Closure closure, Binding binding) {
+    closure.delegate = new Bootstrap()
+    closure.resolveStrategy = Closure.DELEGATE_FIRST
+    return closure
+  }
+
   def createCqlChangeSet(Closure closure, Binding binding) {
     closure.delegate = new CqlChangeSet()
     def code = closure
@@ -209,6 +238,7 @@ class CassalogImpl implements Cassalog {
     def binding = new Binding(scriptVars)
 
     scriptVars.createKeyspace = { dbchanges << createKeyspace(it, binding) }
+    scriptVars.bootstrap = { dbchanges << it }
     scriptVars.schemaChange = { dbchanges << createCqlChangeSet(it, binding) }
     scriptVars.setKeyspace = { dbchanges << new SetKeyspace(name: keyspace) }
     scriptVars.include = { dbchanges.addAll(include(it, vars)) }
